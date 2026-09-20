@@ -349,7 +349,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--cyan);cursor:poin
 <div class="modalOverlay" id="connectModal">
   <div class="modalBox">
     <h2>🔌 Kapcsolódás az ESP32‑höz</h2>
-    <p>Add meg az ESP32 IP‑címét. Ha mDNS működik, használhatod az <code>ambilight.local</code> címet is.</p>
+    <p>Az ESP32 közvetlenül HTTP-n szolgálja ki a vezérlőt. GitHub Pages HTTPS-ről a böngésző a helyi HTTP API-t blokkolhatja. Ilyenkor nyisd meg ezt a vezérlőt közvetlenül az ESP32-ről: <code>http://ESP:8080</code>.</p>
     <label>ESP32 IP-cím</label><input id="modalIP" placeholder="192.168.1.100 vagy ambilight.local">
     <label>Web Auth jelszó</label><input id="modalAuth" type="password" placeholder="ambilight">
     <div class="btnRow" style="justify-content:flex-end"><button class="btn" onclick="doConnect()">Kapcsolódás</button></div>
@@ -517,6 +517,12 @@ async function api(p,o={}){
 }
 async function apiGet(p){const r=await api(p);if(!r.ok)throw Error(r.status);return r.json()}
 async function apiPost(p,b){const r=await api(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});if(!r.ok)throw Error(await r.text());return r.json()}
+async function apiFormPost(p,b){
+  const body=new URLSearchParams();
+  Object.entries(b||{}).forEach(([k,v])=>{if(v!==undefined&&v!==null)body.set(k,String(v))});
+  const r=await api(p,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body});
+  if(!r.ok)throw Error(await r.text()); return r.json();
+}
 
 /* ── Toast ──────────────────────────────────────────────────────── */
 function toast(m,e){const t=$("toast");t.textContent=m;t.className="toast "+(e?"err":"ok")+" show";setTimeout(()=>t.classList.remove("show"),2500)}
@@ -739,17 +745,27 @@ function collectCfg(){
 }
 
 /* ── Actions ────────────────────────────────────────────────────── */
-async function saveConfig(){try{await apiPost("/api/config",collectCfg());toast("Beállítások elmentve ✓");setTimeout(loadAll,300)}catch(e){toast("Mentési hiba: "+e.message,1)}}
+async function saveConfig(){
+  try{
+    const cfg=collectCfg();
+    await apiFormPost("/api/config",{brightness:cfg.brightness,smoothing:cfg.smoothing,blackThreshold:cfg.black_threshold});
+    if($("cfgTvIP").value) await apiFormPost("/api/tv",{ip:$("cfgTvIP").value});
+    await apiPost("/api/mapper",{segments:cfg.segments});
+    await apiFormPost("/api/mood",{leftMode:cfg.left.effect,rightMode:cfg.right.effect,leftHue:cfg.left.hue,rightHue:cfg.right.hue,leftSat:cfg.left.sat,rightSat:cfg.right.sat,leftVal:cfg.left.bri,rightVal:cfg.right.bri,linkMode:cfg.mood_link});
+    await apiFormPost("/api/sideclone",{enabled:cfg.clone_on?1:0,brightness:cfg.clone_bri,leftStart:cfg.clone_l_start,leftCount:cfg.clone_l_count,rightStart:cfg.clone_r_start,rightCount:cfg.clone_r_count,leftReverse:cfg.clone_l_rev?1:0,rightReverse:cfg.clone_r_rev?1:0});
+    toast("Beállítások elmentve ✓");setTimeout(loadAll,300);
+  }catch(e){toast("Mentési hiba: "+e.message,1)}
+}
 async function defaults(){try{await apiPost("/api/defaults",{});toast("Gyári értékek visszaállítva ✓");setTimeout(loadAll,500)}catch(e){toast("Hiba",1)}}
-async function restartESP(){try{await apiPost("/api/reboot?confirm=1",{});toast("ESP32 újraindul...");updateConn(false)}catch(e){toast("Hiba: "+e.message,1)}}
-async function ledTest(m){try{await apiPost("/api/ledtest",{mode:m});toast("LED teszt: "+m)}catch(e){toast("LED teszt hiba: "+e.message,1)}}
-async function saveWiFi(){try{await apiPost("/api/wifi",{ssid:$("cfgWifiSSID").value,password:$("cfgWifiPass").value});toast("WiFi mentve ✓")}catch(e){toast("Hiba",1)}}
+async function restartESP(){try{await apiFormPost("/api/reboot?confirm=1",{});toast("ESP32 újraindul...");updateConn(false)}catch(e){toast("Hiba: "+e.message,1)}}
+async function ledTest(m){const rgb={red:[255,0,0],green:[0,255,0],blue:[0,0,255],white:[255,255,255]}[m]||[255,255,255];try{await apiFormPost("/api/ledtest",{r:rgb[0],g:rgb[1],b:rgb[2]});toast("LED teszt: "+m)}catch(e){toast("LED teszt hiba: "+e.message,1)}}
+async function saveWiFi(){try{const r=await apiFormPost("/api/wifi",{ssid:$("cfgWifiSSID").value,password:$("cfgWifiPass").value});toast(r.changed===false?"WiFi már beállítva ✓":"WiFi mentve — újraindítás ✓")}catch(e){toast("WiFi mentési hiba: "+e.message,1)}}
 async function saveAuth(){
   const p1=$("cfgAuthPass").value,p2=$("cfgAuthPass2").value;
   if(p1.length>63)return toast("Jelszó max 63 karakter",1);
   if(p1!==p2)return toast("A két jelszó nem egyezik",1);
   try{
-    const r=await apiPost("/api/auth",{password:$("cfgAuthOn").checked?p1:""});
+    const r=await apiFormPost("/api/auth",{password:$("cfgAuthOn").checked?p1:""});
     if(!r.enabled){auth="";localStorage.removeItem("ab_auth")}
     toast(r.enabled?"Auth bekapcsolva ✓":"Auth kikapcsolva ✓");
     $("cfgAuthPass").value="";$("cfgAuthPass2").value="";
@@ -757,7 +773,7 @@ async function saveAuth(){
   }catch(e){toast("Auth mentési hiba: "+e.message,1)}
 }
 async function disableAuth(){
-  try{await apiPost("/api/auth",{password:""});auth="";localStorage.removeItem("ab_auth");toast("Auth kikapcsolva ✓");refreshAuthState()}
+  try{await apiFormPost("/api/auth",{password:""});auth="";localStorage.removeItem("ab_auth");toast("Auth kikapcsolva ✓");refreshAuthState()}
   catch(e){toast("Hiba: "+e.message,1)}
 }
 async function refreshAuthState(){
@@ -794,8 +810,8 @@ $$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
 /* ── Init ───────────────────────────────────────────────────────── */
 $("moodLeftForm").innerHTML=moodForm("left");$("moodRightForm").innerHTML=moodForm("right");renderSegs([]);renderScene({brightness:0,saturation:0,motion:0,energy:0,dominantColor:{r:0,g:0,b:0},dominantHue:0,warmCool:0,zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});renderAdaptive({brightness:50,speed:50,reaction:50,sceneType:"NORMAL"});renderZoneAnalysis({zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});
 if(espIP && !securePage){try{setESPAddress(espIP);loadAll()}catch(e){$("connectModal").style.display="flex"}}else $("connectModal").style.display="flex";
+if(securePage){$("modalIP").value=localStorage.getItem("ab_ip")||"192.168.1.228";}
 setInterval(async()=>{if(!espHost||securePage)return;try{const s=await apiGet("/api/state");config={...config,...s};updateConn(true);renderStats(config);renderDiag(config)}catch(e){updateConn(false)}},8000);
 console.log("🚀 Ambilight Bridge v5.0 · Full Smart Engine · Ready");
 </script>
 </body>
-</html>
