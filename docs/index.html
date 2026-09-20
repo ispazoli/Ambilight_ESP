@@ -482,6 +482,7 @@ class SmartEngine{
 let espIP=localStorage.getItem("ab_ip")||"",auth=localStorage.getItem("ab_auth")||"";
 let espHost="",espPort=8080,wsPort=81,ws=null,wsTO=null,config=null,fps_f=0,fps_t=performance.now(),fps_v=0;
 let securePage=location.protocol==="https:";
+let localESPPage=location.protocol==="http:" && (location.port==="8080" || location.hostname==="ambilight.local");
 function normalizeESP(v){
   v=(v||"").trim();
   if(!v)return {host:"ambilight.local",port:8080};
@@ -495,8 +496,14 @@ function setESPAddress(v){
   const n=normalizeESP(v); espHost=n.host; espPort=n.port; espIP=espHost+(espPort!==8080?":"+espPort:"");
   localStorage.setItem("ab_ip",espIP);
 }
-function apiUrl(p){return espHost?"http://"+espHost+":"+espPort+p:null}
-function wsUrl(){return espHost?"ws://"+espHost+":"+wsPort:null}let pipeline=new TVFramePipeline({smoothing:.25,deadband:1,maxDelta:48,blackThreshold:4,staleTimeoutMs:1000});
+function apiUrl(p){
+  if(localESPPage)return p;
+  return espHost?"http://"+espHost+":"+espPort+p:null;
+}
+function wsUrl(){
+  if(localESPPage)return "ws://"+location.hostname+":"+wsPort;
+  return espHost?"ws://"+espHost+":"+wsPort:null;
+}let pipeline=new TVFramePipeline({smoothing:.25,deadband:1,maxDelta:48,blackThreshold:4,staleTimeoutMs:1000});
 let engine=new SmartEngine({mode:"SMART PRO",brightnessMin:10,brightnessMax:100,speedMin:10,speedMax:90,reactionMin:10,reactionMax:90,response:35});
 engine.start();
 engine.on("update",r=>{
@@ -551,10 +558,17 @@ function updateConn(on){
   else{td.classList.remove("on");ed.classList.remove("on");$("tvLabel").textContent="TV —";$("espLabel").textContent="ESP —"}
 }
 async function doConnect(){
-  const raw=$("modalIP").value.trim()||"ambilight.local",pw=$("modalAuth").value;
-  if(securePage){
+  const raw=$("modalIP").value.trim()||(localESPPage?location.hostname:"ambilight.local"),pw=$("modalAuth").value;
+  if(securePage && !localESPPage){
     toast("GitHub Pages HTTPS: az ESP32 HTTP API közvetlenül blokkolható. Nyisd meg ezt a vezérlőt az ESP32-ről: http://ESP:8080",1);
     return;
+  }
+  if(localESPPage){
+    espHost=location.hostname;
+    espPort=Number(location.port)||8080;
+    espIP=espHost+(espPort!==8080?":"+espPort:"");
+  } else {
+    try{setESPAddress(raw)}catch(e){toast(e.message,1);return}
   }
   try{setESPAddress(raw)}catch(e){toast(e.message,1);return}
   if(pw){auth="Basic "+btoa("admin:"+pw);localStorage.setItem("ab_auth",auth)}
@@ -854,7 +868,14 @@ $$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
 
 /* ── Init ───────────────────────────────────────────────────────── */
 $("moodLeftForm").innerHTML=moodForm("left");$("moodRightForm").innerHTML=moodForm("right");renderSegs([]);renderScene({brightness:0,saturation:0,motion:0,energy:0,dominantColor:{r:0,g:0,b:0},dominantHue:0,warmCool:0,zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});renderAdaptive({brightness:50,speed:50,reaction:50,sceneType:"NORMAL"});renderZoneAnalysis({zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});
-if(espIP && !securePage){try{setESPAddress(espIP);loadAll()}catch(e){$("connectModal").style.display="flex"}}else $("connectModal").style.display="flex";
+if(localESPPage){
+  espHost=location.hostname; espPort=Number(location.port)||8080;
+  espIP=espHost+(espPort!==8080?":"+espPort:"");
+  $("connectModal").style.display="none";
+  loadAll();
+}else if(espIP && !securePage){
+  try{setESPAddress(espIP);loadAll()}catch(e){$("connectModal").style.display="flex"}
+}else $("connectModal").style.display="flex";
 if(securePage){$("modalIP").value=localStorage.getItem("ab_ip")||"192.168.1.228";}
 setInterval(async()=>{if(!espHost||securePage)return;try{const s=await apiGet("/api/state");config={...config,...normalizeState(s)};updateConn(true);renderStats(config);renderDiag(config)}catch(e){updateConn(false)}},8000);
 console.log("🚀 Ambilight Bridge v5.0 · Full Smart Engine · Ready");
