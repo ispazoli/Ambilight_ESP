@@ -561,13 +561,13 @@ async function doConnect(){
   try{
     const cap=await apiGet("/api/capabilities");
     const s=await apiGet("/api/state");
-    config={...cap,...s};
+    config={...cap,...normalizeState(s)};
     $("connectModal").style.display="none";updateConn(true);startWS();startPoll();applyConfig(s);
   }catch(e){updateConn(false);toast("ESP kapcsolat hiba: "+e.message,1)}
 }
 async function loadAll(){
   try{
-    const s=await apiGet("/api/state");config=s;
+    const s=await apiGet("/api/state");config=normalizeState(s);
     applyConfig(s);$("connectModal").style.display="none";updateConn(true);
     if(!ws)startWS();startPoll();
   }catch(e){$("connectModal").style.display="flex";updateConn(false)}
@@ -663,8 +663,47 @@ function renderEngineStatus(){
 }
 setInterval(renderEngineStatus,2000);
 
-/* ── Apply config to UI ────────────────────────────────────────── */
-function applyConfig(s){
+/* ── Firmware → Browser state normalization ─────────────────────
+   v5.4.x firmware is the canonical source. Older UI field names are
+   normalized here so existing pages/features do not lose state. */
+function normalizeState(s){
+  s=s||{};
+  return {
+    ...s,
+    firmware:s.firmware||s.fw||"—",
+    schema:s.schema??s.contract??"—",
+    tv_ip:s.tv_ip||s.tvIP||"",
+    tv_online:s.tv_online??s.tvOnline??false,
+    esp_ip:s.esp_ip||s.ip||"",
+    good:s.good??s.goodFrames??0,
+    bad:s.bad??s.badFrames??0,
+    free_heap:s.free_heap??s.heap??0,
+    smart_seq:s.smart_seq??s.seq??0,
+    http_port:s.http_port??8080,
+    ws_port:s.ws_port??81,
+    black_threshold:s.black_threshold??s.blackThreshold??4,
+    clone_on:s.clone_on??s.sideCloneEnabled??false,
+    clone_bri:s.clone_bri??s.sideCloneBrightness??255,
+    clone_l_start:s.clone_l_start??30,
+    clone_l_count:s.clone_l_count??30,
+    clone_r_start:s.clone_r_start??90,
+    clone_r_count:s.clone_r_count??30,
+    clone_l_rev:s.clone_l_rev??false,
+    clone_r_rev:s.clone_r_rev??false,
+    mood_link:s.mood_link??s.moodLinkMode??0,
+    segments:Array.isArray(s.segments)?s.segments.map(x=>({
+      start:x.start??0,count:x.count??0,source:x.source??0,
+      bri:x.bri??x.brightness??255,brightness:x.brightness??x.bri??255,
+      rev:x.rev??x.reverse??false,reverse:x.reverse??x.rev??false
+    })):[],
+    zone_current:s.zone_current||[],
+    zone_target:s.zone_target||[],
+    zones:s.zones||[]
+  };
+}
+function applyConfig(raw){
+  const s=normalizeState(raw);
+  config={...(config||{}),...s};
   setVal("cfgTvIP",s.tv_ip||"192.168.1.148");$("cfgTvSync").checked=!!s.tv_sync;$("cfgTvBSync").checked=!!s.tv_bsync;
   $("cfgCloneOn").checked=!!s.clone_on;setVal("cfgCloneBri",s.clone_bri??255);$("cfgCloneBriV").textContent=s.clone_bri??255;
   setVal("cfgCloneLS",s.clone_l_start??30);setVal("cfgCloneLC",s.clone_l_count??30);
@@ -753,7 +792,16 @@ async function saveConfig(){
     toast("Beállítások elmentve ✓");setTimeout(loadAll,300);
   }catch(e){toast("Mentési hiba: "+e.message,1)}
 }
-async function defaults(){try{await apiPost("/api/defaults",{});toast("Gyári értékek visszaállítva ✓");setTimeout(loadAll,500)}catch(e){toast("Hiba",1)}}
+async function defaults(){
+  try{
+    const segs=[0,1,2,3].map((src,i)=>({start:i*30,count:30,source:src+1,brightness:255,reverse:false}));
+    await apiFormPost("/api/config",{brightness:160,smoothing:70,blackThreshold:4});
+    await apiPost("/api/mapper",{segments:segs});
+    await apiFormPost("/api/mood",{leftMode:0,rightMode:0,leftHue:0,rightHue:120,leftSat:255,rightSat:255,leftVal:200,rightVal:200,linkMode:0});
+    await apiFormPost("/api/sideclone",{enabled:1,brightness:255,leftStart:30,leftCount:30,rightStart:90,rightCount:30,leftReverse:0,rightReverse:0});
+    toast("Gyári alapbeállítások visszaállítva ✓");setTimeout(loadAll,500);
+  }catch(e){toast("Gyári visszaállítás hiba: "+e.message,1)}
+}
 async function restartESP(){try{await apiFormPost("/api/reboot?confirm=1",{});toast("ESP32 újraindul...");updateConn(false)}catch(e){toast("Hiba: "+e.message,1)}}
 async function ledTest(m){const rgb={red:[255,0,0],green:[0,255,0],blue:[0,0,255],white:[255,255,255]}[m]||[255,255,255];try{await apiFormPost("/api/ledtest",{r:rgb[0],g:rgb[1],b:rgb[2]});toast("LED teszt: "+m)}catch(e){toast("LED teszt hiba: "+e.message,1)}}
 async function saveWiFi(){try{const r=await apiFormPost("/api/wifi",{ssid:$("cfgWifiSSID").value,password:$("cfgWifiPass").value});toast(r.changed===false?"WiFi már beállítva ✓":"WiFi mentve — újraindítás ✓")}catch(e){toast("WiFi mentési hiba: "+e.message,1)}}
@@ -808,7 +856,7 @@ $$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
 $("moodLeftForm").innerHTML=moodForm("left");$("moodRightForm").innerHTML=moodForm("right");renderSegs([]);renderScene({brightness:0,saturation:0,motion:0,energy:0,dominantColor:{r:0,g:0,b:0},dominantHue:0,warmCool:0,zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});renderAdaptive({brightness:50,speed:50,reaction:50,sceneType:"NORMAL"});renderZoneAnalysis({zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});
 if(espIP && !securePage){try{setESPAddress(espIP);loadAll()}catch(e){$("connectModal").style.display="flex"}}else $("connectModal").style.display="flex";
 if(securePage){$("modalIP").value=localStorage.getItem("ab_ip")||"192.168.1.228";}
-setInterval(async()=>{if(!espHost||securePage)return;try{const s=await apiGet("/api/state");config={...config,...s};updateConn(true);renderStats(config);renderDiag(config)}catch(e){updateConn(false)}},8000);
+setInterval(async()=>{if(!espHost||securePage)return;try{const s=await apiGet("/api/state");config={...config,...normalizeState(s)};updateConn(true);renderStats(config);renderDiag(config)}catch(e){updateConn(false)}},8000);
 console.log("🚀 Ambilight Bridge v5.0 · Full Smart Engine · Ready");
 </script>
 </body>
