@@ -1497,7 +1497,14 @@ void otaFinishHandler(){
 
 void setupRoutes(){
   server.on("/",             HTTP_GET,  handleConfigPortal);
-  server.on("/setup",          HTTP_GET,  handleConfigPortal);
+  server.on("/setup",          HTTP_GET,  [](){
+    // Explicit setup/recovery portal. Temporarily expose the provisioning UI
+    // even in STA mode; /api/wifi still requires auth outside provisioning.
+    bool savedProvisioning=provisioningMode;
+    provisioningMode=true;
+    handleConfigPortal();
+    provisioningMode=savedProvisioning;
+  });
   server.on("/api/scan",     HTTP_GET,  apiScan);
   server.on("/api/state",    HTTP_GET,  apiState);
   server.on("/api/realtime", HTTP_GET,  apiRealtime);
