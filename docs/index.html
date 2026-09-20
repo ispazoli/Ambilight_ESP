@@ -247,8 +247,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--cyan);cursor:poin
   <div class="card"><div class="cardHead"><span class="cardIcon">🗺️</span><h3>LED <b>Mapper</b> · 12 független szegmens · 4 oldal × 3</h3></div>
     <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Minden szegmenshez rendelj TV zónát, gradiens irányt vagy keverési módot. A fizikai sorrend független a logikai zónáktól.</p>
     <div id="segList"></div>
-    <div class="btnRow"><button class="btn btnDim" onclick="defaults()">↺ Gyári</button><button class="btn btnSave" onclick="saveConfig()">💾 Mentés</button></div>
-  </div>
+    <div class="btnRow"><button class="btn btnDim" onclick="defaults()">↺ Gyári</button><button class="btn btnSave" onclick="saveConfig()">💾 Mentés</button></div>  </div>
   <div class="card" style="margin-top:14px"><div class="cardHead"><span class="cardIcon">👁️</span><h3><b>Előnézet</b> · forrás színek szerint</h3></div>
     <div class="ledStrip" id="mapperBar"></div>
     <div class="ledLegend"><span><i style="background:#f00"></i>L0</span><span><i style="background:#0f0"></i>L1</span><span><i style="background:#00f"></i>R0</span><span><i style="background:#ff0"></i>R1</span><span><i style="background:#f0f"></i>Gradiens</span><span><i style="background:#333"></i>Black</span></div>
@@ -487,7 +486,7 @@ function normalizeESP(v){
   v=(v||"").trim();
   if(!v)return {host:"ambilight.local",port:8080};
   try{
-    if(!/^https?:\\/\\//i.test(v)) v="http://"+v;
+    if(!/^https?:\/\//i.test(v)) v="http://"+v;
     const u=new URL(v);
     return {host:u.hostname,port:Number(u.port)||8080};
   }catch(e){throw Error("Érvénytelen ESP cím: "+v)}
@@ -497,8 +496,7 @@ function setESPAddress(v){
   localStorage.setItem("ab_ip",espIP);
 }
 function apiUrl(p){return espHost?"http://"+espHost+":"+espPort+p:null}
-function wsUrl(){return espHost?"ws://"+espHost+":"+wsPort:null}
-let pipeline=new TVFramePipeline({smoothing:.25,deadband:1,maxDelta:48,blackThreshold:4,staleTimeoutMs:1000});
+function wsUrl(){return espHost?"ws://"+espHost+":"+wsPort:null}let pipeline=new TVFramePipeline({smoothing:.25,deadband:1,maxDelta:48,blackThreshold:4,staleTimeoutMs:1000});
 let engine=new SmartEngine({mode:"SMART PRO",brightnessMin:10,brightnessMax:100,speedMin:10,speedMax:90,reactionMin:10,reactionMax:90,response:35});
 engine.start();
 engine.on("update",r=>{
@@ -747,8 +745,7 @@ function collectCfg(){
 /* ── Actions ────────────────────────────────────────────────────── */
 async function saveConfig(){
   try{
-    const cfg=collectCfg();
-    await apiFormPost("/api/config",{brightness:cfg.brightness,smoothing:cfg.smoothing,blackThreshold:cfg.black_threshold});
+    const cfg=collectCfg();    await apiFormPost("/api/config",{brightness:cfg.brightness,smoothing:cfg.smoothing,blackThreshold:cfg.black_threshold});
     if($("cfgTvIP").value) await apiFormPost("/api/tv",{ip:$("cfgTvIP").value});
     await apiPost("/api/mapper",{segments:cfg.segments});
     await apiFormPost("/api/mood",{leftMode:cfg.left.effect,rightMode:cfg.right.effect,leftHue:cfg.left.hue,rightHue:cfg.right.hue,leftSat:cfg.left.sat,rightSat:cfg.right.sat,leftVal:cfg.left.bri,rightVal:cfg.right.bri,linkMode:cfg.mood_link});
