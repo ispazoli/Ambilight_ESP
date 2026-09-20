@@ -197,8 +197,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--cyan);cursor:poin
 @media(max-width:1100px){.g12{grid-template-columns:1fr}.c6,.c4,.c3,.c8{grid-column:span 1}.g2,.g3,.g4{grid-template-columns:1fr}.frow3,.frow4{grid-template-columns:1fr 1fr}.segRow{grid-template-columns:45px 45px 1fr 40px 35px}}
 @media(max-width:640px){.topbar{flex-direction:column;align-items:flex-start;gap:10px}.statusBar{flex-wrap:wrap}.brand h1{font-size:16px}.frow,.frow3,.frow4{grid-template-columns:1fr}.g2,.g3,.g4{grid-template-columns:1fr}.segRow{grid-template-columns:1fr 1fr;gap:4px}.nav{overflow-x:auto;flex-wrap:nowrap}.navBtn{flex-shrink:0}.paletteGrid{grid-template-columns:repeat(6,1fr)}}
 </style>
-</head>
-<body>
+</head><body>
 <div class="app">
 <!-- ═══════════════ TOP BAR ═══════════════ -->
 <header class="topbar">
@@ -248,8 +247,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--cyan);cursor:poin
   <div class="card"><div class="cardHead"><span class="cardIcon">🗺️</span><h3>LED <b>Mapper</b> · 12 független szegmens · 4 oldal × 3</h3></div>
     <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Minden szegmenshez rendelj TV zónát, gradiens irányt vagy keverési módot. A fizikai sorrend független a logikai zónáktól.</p>
     <div id="segList"></div>
-    <div class="btnRow"><button class="btn btnDim" onclick="defaults()">↺ Gyári</button><button class="btn btnSave" onclick="saveConfig()">💾 Mentés</button></div>
-  </div>
+    <div class="btnRow"><button class="btn btnDim" onclick="defaults()">↺ Gyári</button><button class="btn btnSave" onclick="saveConfig()">💾 Mentés</button></div>  </div>
   <div class="card" style="margin-top:14px"><div class="cardHead"><span class="cardIcon">👁️</span><h3><b>Előnézet</b> · forrás színek szerint</h3></div>
     <div class="ledStrip" id="mapperBar"></div>
     <div class="ledLegend"><span><i style="background:#f00"></i>L0</span><span><i style="background:#0f0"></i>L1</span><span><i style="background:#00f"></i>R0</span><span><i style="background:#ff0"></i>R1</span><span><i style="background:#f0f"></i>Gradiens</span><span><i style="background:#333"></i>Black</span></div>
@@ -350,7 +348,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--cyan);cursor:poin
 <div class="modalOverlay" id="connectModal">
   <div class="modalBox">
     <h2>🔌 Kapcsolódás az ESP32‑höz</h2>
-    <p>Add meg az ESP32 IP‑címét. Ha mDNS működik, használhatod az <code>ambilight.local</code> címet is.</p>
+    <p>Az ESP32 közvetlenül HTTP-n szolgálja ki a vezérlőt. GitHub Pages HTTPS-ről a böngésző a helyi HTTP API-t blokkolhatja. Ilyenkor nyisd meg ezt a vezérlőt közvetlenül az ESP32-ről: <code>http://ESP:8080</code>.</p>
     <label>ESP32 IP-cím</label><input id="modalIP" placeholder="192.168.1.100 vagy ambilight.local">
     <label>Web Auth jelszó</label><input id="modalAuth" type="password" placeholder="ambilight">
     <div class="btnRow" style="justify-content:flex-end"><button class="btn" onclick="doConnect()">Kapcsolódás</button></div>
@@ -397,8 +395,7 @@ class TVFramePipeline{
     const zones=frame.zones.slice(0,this.zoneCount).map(z=>({r:clamp(z.r||0),g:clamp(z.g||0),b:clamp(z.b||0)}));
     let processed;
     if(!this.previousZones){processed=zones.map(z=>({...z}))}
-    else{
-      const f=this.smoothing,inv=1-f;
+    else{      const f=this.smoothing,inv=1-f;
       processed=zones.map((z,i)=>{const p=this.previousZones[i];let r=p.r*inv+z.r*f,g=p.g*inv+z.g*f,b=p.b*inv+z.b*f;
         const dr=Math.abs(r-p.r),dg=Math.abs(g-p.g),db=Math.abs(b-p.b);
         if(dr<this.deadband)r=p.r;if(dg<this.deadband)g=p.g;if(db<this.deadband)b=p.b;
@@ -483,8 +480,23 @@ class SmartEngine{
    SECTION 2 — APPLICATION CORE
    ═══════════════════════════════════════════════════════════════════════════ */
 let espIP=localStorage.getItem("ab_ip")||"",auth=localStorage.getItem("ab_auth")||"";
-let ws=null,wsTO=null,config=null,fps_f=0,fps_t=performance.now(),fps_v=0;
-let pipeline=new TVFramePipeline({smoothing:.25,deadband:1,maxDelta:48,blackThreshold:4,staleTimeoutMs:1000});
+let espHost="",espPort=8080,wsPort=81,ws=null,wsTO=null,config=null,fps_f=0,fps_t=performance.now(),fps_v=0;
+let securePage=location.protocol==="https:";
+function normalizeESP(v){
+  v=(v||"").trim();
+  if(!v)return {host:"ambilight.local",port:8080};
+  try{
+    if(!/^https?:\/\//i.test(v)) v="http://"+v;
+    const u=new URL(v);
+    return {host:u.hostname,port:Number(u.port)||8080};
+  }catch(e){throw Error("Érvénytelen ESP cím: "+v)}
+}
+function setESPAddress(v){
+  const n=normalizeESP(v); espHost=n.host; espPort=n.port; espIP=espHost+(espPort!==8080?":"+espPort:"");
+  localStorage.setItem("ab_ip",espIP);
+}
+function apiUrl(p){return espHost?"http://"+espHost+":"+espPort+p:null}
+function wsUrl(){return espHost?"ws://"+espHost+":"+wsPort:null}let pipeline=new TVFramePipeline({smoothing:.25,deadband:1,maxDelta:48,blackThreshold:4,staleTimeoutMs:1000});
 let engine=new SmartEngine({mode:"SMART PRO",brightnessMin:10,brightnessMax:100,speedMin:10,speedMax:90,reactionMin:10,reactionMax:90,response:35});
 engine.start();
 engine.on("update",r=>{
@@ -494,8 +506,7 @@ engine.on("update",r=>{
 });
 
 /* ── API ────────────────────────────────────────────────────────── */
-function apiUrl(p){return espIP?`http://${espIP}:8080${p}`:null}
-function apiH(h){return {...h||{},Authorization:auth||undefined}}
+function apiH(h){return {...h||{},...(auth?{Authorization:auth}:{})}}
 async function api(p,o={}){
   const u=apiUrl(p);if(!u)throw Error("No IP");
   const r=await fetch(u,{...o,cache:"no-store",headers:apiH(o.headers||{})});
@@ -504,6 +515,12 @@ async function api(p,o={}){
 }
 async function apiGet(p){const r=await api(p);if(!r.ok)throw Error(r.status);return r.json()}
 async function apiPost(p,b){const r=await api(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});if(!r.ok)throw Error(await r.text());return r.json()}
+async function apiFormPost(p,b){
+  const body=new URLSearchParams();
+  Object.entries(b||{}).forEach(([k,v])=>{if(v!==undefined&&v!==null)body.set(k,String(v))});
+  const r=await api(p,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body});
+  if(!r.ok)throw Error(await r.text()); return r.json();
+}
 
 /* ── Toast ──────────────────────────────────────────────────────── */
 function toast(m,e){const t=$("toast");t.textContent=m;t.className="toast "+(e?"err":"ok")+" show";setTimeout(()=>t.classList.remove("show"),2500)}
@@ -511,7 +528,7 @@ function toast(m,e){const t=$("toast");t.textContent=m;t.className="toast "+(e?"
 /* ── WebSocket ──────────────────────────────────────────────────── */
 function startWS(){
   if(!espIP)return;
-  try{ws=new WebSocket(`ws://${espIP}:81`)}catch(e){return scheduleWS()}
+  try{ws=new WebSocket(wsUrl())}catch(e){return scheduleWS()}
   ws.onopen=()=>{const d=$("wsDot");if(d)d.style.display="inline-block";const l=$("wsLabel");if(l)l.style.display="inline";updateConn(true)};
   ws.onmessage=e=>{try{const f=JSON.parse(e.data);if(pipeline.accept(f,Date.now()).accepted){fps_f++;const n=performance.now();if(n-fps_t>=1000){fps_v=Math.round(fps_f*1000/(n-fps_t));fps_f=0;fps_t=n;$("fpsChip").textContent=fps_v+" FPS"}engine.process({zones:f.zones});updateLEDBar(f.zones);updateZones(f.zones)}}catch(err){}}
   ws.onclose=()=>{ws=null;const d=$("wsDot");if(d)d.style.display="none";const l=$("wsLabel");if(l)l.style.display="none";scheduleWS();startPoll()};
@@ -534,14 +551,23 @@ function updateConn(on){
   else{td.classList.remove("on");ed.classList.remove("on");$("tvLabel").textContent="TV —";$("espLabel").textContent="ESP —"}
 }
 async function doConnect(){
-  const ip=$("modalIP").value.trim()||"ambilight.local",pw=$("modalAuth").value;
+  const raw=$("modalIP").value.trim()||"ambilight.local",pw=$("modalAuth").value;
+  if(securePage){
+    toast("GitHub Pages HTTPS: az ESP32 HTTP API közvetlenül blokkolható. Nyisd meg ezt a vezérlőt az ESP32-ről: http://ESP:8080",1);
+    return;
+  }
+  try{setESPAddress(raw)}catch(e){toast(e.message,1);return}
   if(pw){auth="Basic "+btoa("admin:"+pw);localStorage.setItem("ab_auth",auth)}
-  espIP=ip;localStorage.setItem("ab_ip",ip);
-  try{const h=await apiGet("/api/health");$("connectModal").style.display="none";updateConn(true);startWS();loadAll()}catch(e){toast("Nem sikerült: "+e.message,1)}
+  try{
+    const cap=await apiGet("/api/capabilities");
+    const s=await apiGet("/api/state");
+    config={...cap,...normalizeState(s)};
+    $("connectModal").style.display="none";updateConn(true);startWS();startPoll();applyConfig(s);
+  }catch(e){updateConn(false);toast("ESP kapcsolat hiba: "+e.message,1)}
 }
 async function loadAll(){
   try{
-    const s=await apiGet("/api/state");config=s;
+    const s=await apiGet("/api/state");config=normalizeState(s);
     applyConfig(s);$("connectModal").style.display="none";updateConn(true);
     if(!ws)startWS();startPoll();
   }catch(e){$("connectModal").style.display="flex";updateConn(false)}
@@ -597,8 +623,7 @@ function renderDiag(s){
 
 /* ── Scene Panel ────────────────────────────────────────────────── */
 function renderScene(sc){
-  const p=$("scenePanel");if(!p)return;
-  p.innerHTML=`
+  const p=$("scenePanel");if(!p)return;  p.innerHTML=`
     <div class="meterLabel"><span>Fényerő</span><span>${Math.round(sc.brightness)}%</span></div><div class="meterBar"><div class="meterFill brightness" style="width:${Math.round(sc.brightness)}%"></div></div>
     <div class="meterLabel"><span>Telítettség</span><span>${Math.round(sc.saturation)}%</span></div><div class="meterBar"><div class="meterFill saturation" style="width:${Math.round(sc.saturation)}%"></div></div>
     <div class="meterLabel"><span>Mozgás</span><span>${Math.round(sc.motion)}%</span></div><div class="meterBar"><div class="meterFill motion" style="width:${Math.round(sc.motion)}%"></div></div>
@@ -638,8 +663,47 @@ function renderEngineStatus(){
 }
 setInterval(renderEngineStatus,2000);
 
-/* ── Apply config to UI ────────────────────────────────────────── */
-function applyConfig(s){
+/* ── Firmware → Browser state normalization ─────────────────────
+   v5.4.x firmware is the canonical source. Older UI field names are
+   normalized here so existing pages/features do not lose state. */
+function normalizeState(s){
+  s=s||{};
+  return {
+    ...s,
+    firmware:s.firmware||s.fw||"—",
+    schema:s.schema??s.contract??"—",
+    tv_ip:s.tv_ip||s.tvIP||"",
+    tv_online:s.tv_online??s.tvOnline??false,
+    esp_ip:s.esp_ip||s.ip||"",
+    good:s.good??s.goodFrames??0,
+    bad:s.bad??s.badFrames??0,
+    free_heap:s.free_heap??s.heap??0,
+    smart_seq:s.smart_seq??s.seq??0,
+    http_port:s.http_port??8080,
+    ws_port:s.ws_port??81,
+    black_threshold:s.black_threshold??s.blackThreshold??4,
+    clone_on:s.clone_on??s.sideCloneEnabled??false,
+    clone_bri:s.clone_bri??s.sideCloneBrightness??255,
+    clone_l_start:s.clone_l_start??30,
+    clone_l_count:s.clone_l_count??30,
+    clone_r_start:s.clone_r_start??90,
+    clone_r_count:s.clone_r_count??30,
+    clone_l_rev:s.clone_l_rev??false,
+    clone_r_rev:s.clone_r_rev??false,
+    mood_link:s.mood_link??s.moodLinkMode??0,
+    segments:Array.isArray(s.segments)?s.segments.map(x=>({
+      start:x.start??0,count:x.count??0,source:x.source??0,
+      bri:x.bri??x.brightness??255,brightness:x.brightness??x.bri??255,
+      rev:x.rev??x.reverse??false,reverse:x.reverse??x.rev??false
+    })):[],
+    zone_current:s.zone_current||[],
+    zone_target:s.zone_target||[],
+    zones:s.zones||[]
+  };
+}
+function applyConfig(raw){
+  const s=normalizeState(raw);
+  config={...(config||{}),...s};
   setVal("cfgTvIP",s.tv_ip||"192.168.1.148");$("cfgTvSync").checked=!!s.tv_sync;$("cfgTvBSync").checked=!!s.tv_bsync;
   $("cfgCloneOn").checked=!!s.clone_on;setVal("cfgCloneBri",s.clone_bri??255);$("cfgCloneBriV").textContent=s.clone_bri??255;
   setVal("cfgCloneLS",s.clone_l_start??30);setVal("cfgCloneLC",s.clone_l_count??30);
@@ -718,17 +782,35 @@ function collectCfg(){
 }
 
 /* ── Actions ────────────────────────────────────────────────────── */
-async function saveConfig(){try{await apiPost("/api/config",collectCfg());toast("Beállítások elmentve ✓");setTimeout(loadAll,300)}catch(e){toast("Mentési hiba: "+e.message,1)}}
-async function defaults(){try{await apiPost("/api/defaults",{});toast("Gyári értékek visszaállítva ✓");setTimeout(loadAll,500)}catch(e){toast("Hiba",1)}}
-async function restartESP(){try{await apiPost("/api/restart",{});toast("ESP32 újraindul...");updateConn(false)}catch(e){toast("Hiba",1)}}
-async function ledTest(m){try{await apiGet("/api/ledtest?mode="+m);toast("LED teszt: "+m)}catch(e){}}
-async function saveWiFi(){try{await apiPost("/api/wifi",{ssid:$("cfgWifiSSID").value,password:$("cfgWifiPass").value});toast("WiFi mentve ✓")}catch(e){toast("Hiba",1)}}
+async function saveConfig(){
+  try{
+    const cfg=collectCfg();    await apiFormPost("/api/config",{brightness:cfg.brightness,smoothing:cfg.smoothing,blackThreshold:cfg.black_threshold});
+    if($("cfgTvIP").value) await apiFormPost("/api/tv",{ip:$("cfgTvIP").value});
+    await apiPost("/api/mapper",{segments:cfg.segments});
+    await apiFormPost("/api/mood",{leftMode:cfg.left.effect,rightMode:cfg.right.effect,leftHue:cfg.left.hue,rightHue:cfg.right.hue,leftSat:cfg.left.sat,rightSat:cfg.right.sat,leftVal:cfg.left.bri,rightVal:cfg.right.bri,linkMode:cfg.mood_link});
+    await apiFormPost("/api/sideclone",{enabled:cfg.clone_on?1:0,brightness:cfg.clone_bri,leftStart:cfg.clone_l_start,leftCount:cfg.clone_l_count,rightStart:cfg.clone_r_start,rightCount:cfg.clone_r_count,leftReverse:cfg.clone_l_rev?1:0,rightReverse:cfg.clone_r_rev?1:0});
+    toast("Beállítások elmentve ✓");setTimeout(loadAll,300);
+  }catch(e){toast("Mentési hiba: "+e.message,1)}
+}
+async function defaults(){
+  try{
+    const segs=[0,1,2,3].map((src,i)=>({start:i*30,count:30,source:src+1,brightness:255,reverse:false}));
+    await apiFormPost("/api/config",{brightness:160,smoothing:70,blackThreshold:4});
+    await apiPost("/api/mapper",{segments:segs});
+    await apiFormPost("/api/mood",{leftMode:0,rightMode:0,leftHue:0,rightHue:120,leftSat:255,rightSat:255,leftVal:200,rightVal:200,linkMode:0});
+    await apiFormPost("/api/sideclone",{enabled:1,brightness:255,leftStart:30,leftCount:30,rightStart:90,rightCount:30,leftReverse:0,rightReverse:0});
+    toast("Gyári alapbeállítások visszaállítva ✓");setTimeout(loadAll,500);
+  }catch(e){toast("Gyári visszaállítás hiba: "+e.message,1)}
+}
+async function restartESP(){try{await apiFormPost("/api/reboot?confirm=1",{});toast("ESP32 újraindul...");updateConn(false)}catch(e){toast("Hiba: "+e.message,1)}}
+async function ledTest(m){const rgb={red:[255,0,0],green:[0,255,0],blue:[0,0,255],white:[255,255,255]}[m]||[255,255,255];try{await apiFormPost("/api/ledtest",{r:rgb[0],g:rgb[1],b:rgb[2]});toast("LED teszt: "+m)}catch(e){toast("LED teszt hiba: "+e.message,1)}}
+async function saveWiFi(){try{const r=await apiFormPost("/api/wifi",{ssid:$("cfgWifiSSID").value,password:$("cfgWifiPass").value});toast(r.changed===false?"WiFi már beállítva ✓":"WiFi mentve — újraindítás ✓")}catch(e){toast("WiFi mentési hiba: "+e.message,1)}}
 async function saveAuth(){
   const p1=$("cfgAuthPass").value,p2=$("cfgAuthPass2").value;
   if(p1.length>63)return toast("Jelszó max 63 karakter",1);
   if(p1!==p2)return toast("A két jelszó nem egyezik",1);
   try{
-    const r=await apiPost("/api/auth",{password:$("cfgAuthOn").checked?p1:""});
+    const r=await apiFormPost("/api/auth",{password:$("cfgAuthOn").checked?p1:""});
     if(!r.enabled){auth="";localStorage.removeItem("ab_auth")}
     toast(r.enabled?"Auth bekapcsolva ✓":"Auth kikapcsolva ✓");
     $("cfgAuthPass").value="";$("cfgAuthPass2").value="";
@@ -736,7 +818,7 @@ async function saveAuth(){
   }catch(e){toast("Auth mentési hiba: "+e.message,1)}
 }
 async function disableAuth(){
-  try{await apiPost("/api/auth",{password:""});auth="";localStorage.removeItem("ab_auth");toast("Auth kikapcsolva ✓");refreshAuthState()}
+  try{await apiFormPost("/api/auth",{password:""});auth="";localStorage.removeItem("ab_auth");toast("Auth kikapcsolva ✓");refreshAuthState()}
   catch(e){toast("Hiba: "+e.message,1)}
 }
 async function refreshAuthState(){
@@ -750,7 +832,7 @@ async function refreshAuthState(){
 async function uploadOTA(){
   const f=$("otaFile").files[0];if(!f)return toast("Válassz .bin fájlt",1);
   if(!/\.bin$/i.test(f.name))return toast("Csak .bin fájl",1);
-  const x=new XMLHttpRequest();x.open("POST",apiUrl("/api/update"));
+  const x=new XMLHttpRequest();x.open("POST",apiUrl("/api/ota"));
   if(auth)x.setRequestHeader("Authorization",auth);
   $("otaBtn").disabled=true;$("otaProgress").style.display="block";
   x.upload.onprogress=e=>{if(e.lengthComputable){const p=Math.round(e.loaded/e.total*100);$("otaBar").style.width=p+"%";$("otaText").textContent="Feltöltés "+p+"%"}};
@@ -772,9 +854,9 @@ $$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
 
 /* ── Init ───────────────────────────────────────────────────────── */
 $("moodLeftForm").innerHTML=moodForm("left");$("moodRightForm").innerHTML=moodForm("right");renderSegs([]);renderScene({brightness:0,saturation:0,motion:0,energy:0,dominantColor:{r:0,g:0,b:0},dominantHue:0,warmCool:0,zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});renderAdaptive({brightness:50,speed:50,reaction:50,sceneType:"NORMAL"});renderZoneAnalysis({zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});
-if(espIP)loadAll();else $("connectModal").style.display="flex";
-setInterval(async()=>{if(!espIP)return;try{const h=await apiGet("/api/health");updateConn(true);config={...config,...h};renderStats(config);renderDiag(config)}catch(e){updateConn(false)}},8000);
+if(espIP && !securePage){try{setESPAddress(espIP);loadAll()}catch(e){$("connectModal").style.display="flex"}}else $("connectModal").style.display="flex";
+if(securePage){$("modalIP").value=localStorage.getItem("ab_ip")||"192.168.1.228";}
+setInterval(async()=>{if(!espHost||securePage)return;try{const s=await apiGet("/api/state");config={...config,...normalizeState(s)};updateConn(true);renderStats(config);renderDiag(config)}catch(e){updateConn(false)}},8000);
 console.log("🚀 Ambilight Bridge v5.0 · Full Smart Engine · Ready");
 </script>
 </body>
-</html>
