@@ -1,5 +1,5 @@
 /* ============================================================================
-   AMBILIGHT BRIDGE v5.5.0-C3-HARDENED
+   AMBILIGHT BRIDGE v5.5.1-C3-HARDENED
    ============================================================================
    v5.5.0 változások (biztonság + C3-optimalizálás + stabilitás):
      [SEC] Webes jelszó: nyílt szöveg helyett sózott SHA-256 hash (webslt/webhsh);
@@ -1463,6 +1463,7 @@ void saveMapper(){
   } prefs.end();
 }
 void loadMapper(bool defaultsIfMissing){
+  tvIP=DEFAULT_TV_IP;
   prefs.begin("cfg",true); bool has=prefs.isKey("segcnt"); uint8_t n=prefs.getUChar("segcnt",0);
   if(has && n>0 && n<=MAX_SEGMENTS){ segmentCount=n; bool all=true; for(uint8_t i=0;i<n;i++){ char k[8];
       snprintf(k,sizeof(k),"s%ust",i); segments[i].start=prefs.getUShort(k,0);
