@@ -207,7 +207,7 @@ Preferences        prefs;
 IPAddress          tvIP = DEFAULT_TV_IP;
 ZoneRGB            targetZones[4], currentZones[4];
 WiFiClient         tvClient;
-bool               tvOnline, tvOutputOff=true;
+bool               tvOnline, tvOutputOff=false;
 unsigned long      goodFrames, badFrames;
 
 LedSegment         segments[MAX_SEGMENTS];
@@ -1179,7 +1179,7 @@ void handleTVWatchdog(){
     bool tooManyFails = (tvConsecutiveFailures>=TV_FAILURES_BEFORE_OFFLINE);
     // stale csak akkor értelmezhető, ha már VOLT sikeres poll (lastSuccessfulPoll!=0)
     bool stale = (lastSuccessfulPoll!=0 && (now-lastSuccessfulPoll)>=TV_STALE_TIMEOUT_MS);
-    if(tooManyFails || stale){ tvOnline=false; Serial.println("[TV] offline"); }
+    if(tooManyFails || stale){ tvOnline=false; tvOutputOff=true; Serial.println("[TV] offline"); }
   }
 }
 
