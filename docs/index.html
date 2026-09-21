@@ -725,6 +725,7 @@ function renderEngineStatus(){
     <div class="statBox"><div class="statVal info">${fps_v}</div><div class="statLabel">FPS</div></div>
     <div style="margin-top:8px;font-size:11px;color:var(--soft)">
       <div>Mód: <b style="color:var(--cyan)">SMART PRO</b></div>
+      <div>TV Ambilight: <b style="color:var(--cyan)">${config?.tv_ambilight_mode||config?.tvAmbilightMode||"—"}</b></div>
       <div>Pipeline: <b style="color:var(--green)">${pipeline?pipeline.stats.accepted:0} accepted</b></div>
       <div>WebSocket: <b style="color:${ws?'var(--green)':'var(--red)'}">${ws?'AKTÍV':'INAKTÍV'}</b></div>
     </div>
@@ -743,6 +744,7 @@ function normalizeState(s){
     schema:s.schema??s.contract??"—",
     tv_ip:s.tv_ip||s.tvIP||"",
     tv_online:s.tv_online??s.tvOnline??false,
+    tv_ambilight_mode:s.tv_ambilight_mode??s.tvAmbilightMode??"—",
     esp_ip:s.esp_ip||s.ip||"",
     good:s.good??s.goodFrames??0,
     bad:s.bad??s.badFrames??0,
