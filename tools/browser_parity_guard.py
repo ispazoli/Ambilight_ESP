@@ -93,6 +93,12 @@ for token in ["FIXED_MAPPER_SEGMENTS=12", "FIXED_MAPPER_LEDS=10"]:
         fail(f"browser fixed mapper constant missing: {token}")
 
 # Critical runtime invariants.
+# TV Master Sync + Side Clone render contract.
+for token in ["mapperSideBypassActive", "mapperLedIsClonedSide", "idx>=30", "idx<60", "idx>=90", "idx<120"]:
+    if token not in fw:
+        fail(f"TV sync/clone mapper bypass token missing: {token}")
+if "tvMasterSyncEnabled && sideCloneEnabled" not in fw:
+    fail("TV sync + side clone bypass condition missing")
 if "loadMapper(true);" not in fw or "saveConfig(true)" not in fw:
     fail("mapper persistence/migration invariant missing")
 if "tvIP=DEFAULT_TV_IP" not in fw or 'prefs.getString("tvip"' not in fw:

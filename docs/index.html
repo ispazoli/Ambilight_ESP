@@ -249,7 +249,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--cyan);cursor:poin
 <!-- ═══════════════ LED MAPPER ═══════════════ -->
 <section class="page" id="page-mapper">
   <div class="card"><div class="cardHead"><span class="cardIcon">🗺️</span><h3>LED <b>Mapper</b> · 12 független szegmens · 4 oldal × 30 LED · 3×10/oldal</h3></div>
-    <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Minden szegmenshez rendelj TV zónát, gradiens irányt vagy keverési módot. A fizikai sorrend független a logikai zónáktól.</p>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Minden szegmenshez rendelj TV zónát, gradiens irányt vagy keverési módot. A fizikai sorrend fix. TV Master Sync + Side Clone esetén a Mapper csak a BOTTOM 0–29 és TOP 60–89 LED-eket vezérli; LEFT 30–59 és RIGHT 90–119 klónozott.</p>
     <div id="segList"></div>
     <div class="btnRow"><button class="btn btnDim" onclick="defaults()">↺ Gyári</button><button class="btn btnSave" onclick="saveConfig()">💾 Mentés</button></div>  </div>
   <div class="card" style="margin-top:14px"><div class="cardHead"><span class="cardIcon">👁️</span><h3><b>Előnézet</b> · forrás színek szerint</h3></div>
@@ -289,7 +289,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--cyan);cursor:poin
       <div class="frow"><div><label>TV IP-cím</label><input id="cfgTvIP" placeholder="192.168.1.x"></div><div><label>Port</label><input value="1925 (JointSPACE)" disabled></div></div>
       <div class="checkRow"><input type="checkbox" id="cfgTvSync"><label>TV Master Sync</label></div>
       <div class="checkRow"><input type="checkbox" id="cfgTvBSync"><label>TV fényerő követése</label></div>
-      <p style="font-size:10px;color:var(--muted);margin-top:8px">IP módosítás után ments és indítsd újra az ESP32‑t.</p>
+      <p style="font-size:10px;color:var(--muted);margin-top:8px">TV Master Sync + Side Clone együtt: a Mapper 30–59 és 90–119 tartománya figyelmen kívül marad; ezeket a Side Clone vezérli. IP módosítás után ments és indítsd újra az ESP32‑t.</p>
     </div>
     <div class="card"><div class="cardHead"><span class="cardIcon">🪞</span><h3>Side <b>Clone</b></h3></div>
       <div class="checkRow"><input type="checkbox" id="cfgCloneOn"><label>Side Clone engedélyezése</label></div>
