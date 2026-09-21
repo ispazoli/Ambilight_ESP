@@ -1409,8 +1409,13 @@ void apiTV(){
   server.send(400,"application/json","{\"ok\":false,\"err\":\"invalid ip\"}");
 }
 
-// POST /api/auth  (webes jelszó beállítása)
+// GET/POST /api/auth  (webes jelszó beállítása / állapot)
 void apiAuth(){
+  if(server.method()==HTTP_GET){
+    addCorsHeaders();
+    server.send(200,"application/json",strlen(webAuthPassword)>0?"{\"enabled\":true}":"{\"enabled\":false}");
+    return;
+  }
   if(!webAuthCheck())return;
   if(server.hasArg("password")){
     String p=server.arg("password");
@@ -1418,7 +1423,8 @@ void apiAuth(){
       strncpy(webAuthPassword,p.c_str(),sizeof(webAuthPassword)-1);
       webAuthPassword[sizeof(webAuthPassword)-1]='\0';
       saveConfig();
-      server.send(200,"application/json","{\"ok\":true}"); return;
+      server.send(200,"application/json",strlen(webAuthPassword)>0?"{\"ok\":true,\"enabled\":true}":"{\"ok\":true,\"enabled\":false}");
+      return;
     }
   }
   server.send(400,"application/json","{\"ok\":false}");
@@ -1584,6 +1590,7 @@ void setupRoutes(){
   server.on("/api/topology", HTTP_OPTIONS, handleCorsPreflight);
   server.on("/api/config",   HTTP_POST, apiConfig);
   server.on("/api/tv",       HTTP_POST, apiTV);
+  server.on("/api/auth",     HTTP_GET,  apiAuth);
   server.on("/api/auth",     HTTP_POST, apiAuth);
   server.on("/api/wifi",     HTTP_POST, apiWifi);
   server.on("/api/mood",     HTTP_POST, apiMood);
