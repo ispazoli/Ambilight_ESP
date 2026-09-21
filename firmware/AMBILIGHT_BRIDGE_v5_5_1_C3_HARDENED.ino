@@ -1137,6 +1137,9 @@ stop:
   if(!ok){ badFrames++; return false; }
   targetZones[0]=lt; targetZones[1]=lb; targetZones[2]=rt; targetZones[3]=rb;
   goodFrames++; lastSuccessfulPoll=millis(); tvConsecutiveFailures=0;
+  // A sikeres valódi Ambilight-keret bizonyítja, hogy a TV aktívan szolgáltat
+  // képadatot, ezért az esetleg korábban beragadt power-state tiltást feloldjuk.
+  tvOutputOff=false;
   // [FIX] Az ONLINE állapot KIZÁRÓLAG tényleges sikeres keretből származik
   //       (esemény-vezérelt), nem időzítőből → nincs többé hamis "[TV] online"
   //       közvetlenül boot után (a korábbi lastSuccessfulPoll=0 sentinel-bug).
