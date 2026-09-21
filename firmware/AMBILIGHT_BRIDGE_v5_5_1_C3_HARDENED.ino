@@ -1056,7 +1056,7 @@ bool tvConnect(){
 // Puffer-alapú fejléc-parse (nincs String — nincs O(n²)/heap-fragmentáció).
 int tvGet(const char* path, char* buf, size_t bufLen){
   if(!tvConnect())return -1;
-  tvClient.printf("GET %s HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n",
+  tvClient.printf("GET %s HTTP/1.0\r\nHost: %s\r\nConnection: close\r\n\r\n",
                   path, tvIP.toString().c_str());
   unsigned long t0=millis(); size_t n=0; bool headersDone=false; int contentLen=-1;
   char hdr[512]; size_t hlen=0; int mi=0; static const char MARK[]="\r\n\r\n";
@@ -1090,7 +1090,7 @@ done:
 // [M3/M4] readAmbilight: brace-count korai kilépés + közvetlen deserializeJson(tvRawBuf)
 bool readAmbilight(){
   if(!tvConnect())return false;
-  tvClient.printf("GET /1/ambilight/processed HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n",
+  tvClient.printf("GET /1/ambilight/processed HTTP/1.0\r\nHost: %s\r\nConnection: close\r\n\r\n",
                   tvIP.toString().c_str());
   unsigned long t0=millis(); size_t n=0; bool headersDone=false;
   int depth=0; bool bodyStarted=false, inString=false, escape=false;
