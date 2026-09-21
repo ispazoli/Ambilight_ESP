@@ -2130,6 +2130,11 @@ void renderMood(){MoodConfig L=leftMood,R=rightMood;bool revR=false;uint8_t offR
 
 /* ===== PERSISTENCE (NVS) =============================================== */
 
+/* ===== FORWARD DECLARATIONS =========================================== */
+void setDefaultMapping();
+void saveConfig();
+bool detectTVTopology();
+
 void setDefaultMapping(){
   segmentCount=4; uint16_t per=LED_COUNT/4; const uint8_t src[4]={SRC_L0,SRC_L1,SRC_R0,SRC_R1};
   for(uint8_t i=0;i<4;i++){segments[i].start=i*per;segments[i].count=per;segments[i].source=src[i];segments[i].brightness=255;segments[i].reverse=false;}
