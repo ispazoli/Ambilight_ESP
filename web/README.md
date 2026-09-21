@@ -1,33 +1,34 @@
 # Web UI
 
-The browser control center provides:
+## Single source of truth
 
-- Dashboard
-- LED Mapper
-- Mood Studio
-- Smart Engine
-- TV Ambilight
-- Settings
-- Diagnostics
-- WebSocket realtime communication
-- HTTP polling fallback
-- configuration persistence
-- Wi-Fi/authentication controls
-- OTA upload UI
+The complete Control Center UI lives in:
 
-## Current published UI
+`web/index.html`
 
-The current complete V5 UI is published as:
+This is the **only hand-maintained UI source**. It contains the coupled HTML, CSS and JavaScript and must preserve all existing behavior, IDs, handlers, endpoint names, payloads and initialization order.
 
-`docs/index.html`
+### Generated artifacts
 
-It is intentionally kept as the immediately testable browser artifact while firmware/browser parity is being audited.
+Run:
 
-## Important
+```bash
+python tools/build_web_ui.py
+python tools/browser_parity_guard.py
+```
 
-Do not split the monolithic HTML into `index.html`, `app.js` and `styles.css` until the behavior inventory has been completed. The current document contains CSS and JavaScript that are coupled to the page structure.
+The build generates:
 
-A split should preserve behavior, endpoint names, payloads, IDs, event handlers and initialization order.
+- `docs/index.html` — browser/GitHub Pages artifact
+- `firmware/embedded_ui.h` — PROGMEM firmware embedding
+
+The firmware sketch:
+
+`firmware/AMBILIGHT_BRIDGE_v5_5_1_C3_HARDENED.ino`
+
+includes the generated header instead of containing a second copy of the UI.
+
+**Do not edit `docs/index.html` or `firmware/embedded_ui.h` manually.** Changes belong in `web/index.html`, followed by the build.
 
 ## Browser regression gate
 
@@ -49,3 +50,5 @@ At minimum verify:
 - LED tests;
 - OTA;
 - diagnostics.
+
+The parity guard additionally checks the single-source invariant, firmware embedding, HTML ID parity, API endpoint contract and 23-effect contract.
