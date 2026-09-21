@@ -80,6 +80,18 @@ for token in ["SRC_GRADIENT_TOP", "SRC_GRADIENT_RIGHT", "SRC_GRADIENT_BOTTOM", "
     if token not in fw:
         fail(f"firmware mapper token missing: {token}")
 
+# Fixed physical mapper contract: 4 sides × 3 segments × 10 LEDs = 120 LEDs.
+for token in ["MAPPER_SIDE_COUNT", "MAPPER_SEGMENTS_PER_SIDE", "MAPPER_LEDS_PER_SEGMENT"]:
+    if token not in fw:
+        fail(f"fixed mapper constant missing: {token}")
+if "segmentCount=MAX_SEGMENTS" not in fw or "exactly 12 fixed segments required" not in fw:
+    fail("fixed 12-segment mapper contract missing")
+if "start=fixedSegmentStart(i)" not in fw or "count=MAPPER_LEDS_PER_SEGMENT" not in fw:
+    fail("fixed 3x10 LED addressing contract missing")
+for token in ["FIXED_MAPPER_SEGMENTS=12", "FIXED_MAPPER_LEDS=10"]:
+    if token not in html:
+        fail(f"browser fixed mapper constant missing: {token}")
+
 # Critical runtime invariants.
 if "loadMapper(true);" not in fw or "saveConfig(true)" not in fw:
     fail("mapper persistence/migration invariant missing")
