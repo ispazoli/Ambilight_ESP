@@ -280,7 +280,7 @@ void handleCorsPreflight(){addCorsHeaders();server.send(204,"text/plain","");}
 
 
 /* ===== EMBEDDED CONTROL CENTER PRO ==================================== */
-static const char AMBILIGHT_CC_HTML[] PROGMEM = R"AMBILIGHT_CC_HTML(
+static const char AMBILIGHT_CC_HTML[] PROGMEM = R"AMB_CC_HTML(
 <!DOCTYPE html>
 <html lang="hu">
 <head>
@@ -1179,7 +1179,7 @@ setInterval(async()=>{if(!espHost||securePage)return;try{const s=await apiGet("/
 console.log("🚀 Ambilight Bridge v5.0 · Full Smart Engine · Ready");
 </script>
 </body>
-)AMBILIGHT_CC_HTML";
+)AMB_CC_HTML";
 
 /* ===== ROOT — local Control Center + provisioning portal ================= */
 void handleConfigPortal(){
