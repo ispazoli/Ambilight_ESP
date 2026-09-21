@@ -57,10 +57,10 @@ jobs:
 
       - name: Prepare isolated sketch
         run: |
-          rm -rf .ci-sketch
-          mkdir -p .ci-sketch
-          cp firmware/AMBILIGHT_BRIDGE_v5_5_1_C3_HARDENED.ino .ci-sketch/AmbilightBridge.ino
-          cp firmware/embedded_ui.h .ci-sketch/
+          rm -rf AmbilightBridge
+          mkdir -p AmbilightBridge
+          cp firmware/AMBILIGHT_BRIDGE_v5_5_1_C3_HARDENED.ino AmbilightBridge/AmbilightBridge.ino
+          cp firmware/embedded_ui.h AmbilightBridge/
 
       - name: Compile ESP32-C3 firmware
         run: |
@@ -68,7 +68,7 @@ jobs:
             --fqbn esp32:esp32:esp32c3 \
             --warnings all \
             --output-dir build/esp32c3 \
-            .ci-sketch
+            AmbilightBridge
 
       - name: Report firmware binary
         run: |
