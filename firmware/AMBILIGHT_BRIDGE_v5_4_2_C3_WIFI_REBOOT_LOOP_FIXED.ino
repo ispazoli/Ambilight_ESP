@@ -216,6 +216,13 @@ static char tvJsonBuf[8192];                // a rövid GET kérések válaszáh
 #define TV_MASTER_POLL_MS           5000
 #define MOOD_FRAME_INTERVAL_MS      40
 
+/* ===== FORWARD DECLARATIONS ============================================ */
+// Explicit prototypes: Arduino's automatic prototype generator can miss
+// functions when a large embedded raw-string HTML block is present.
+void setDefaultMapping();
+void saveConfig();
+bool detectTVTopology();
+
 /* ===== UTILITIES ======================================================== */
 
 static inline uint8_t clampU8(int v) { return (uint8_t)constrain(v, 0, 255); }
