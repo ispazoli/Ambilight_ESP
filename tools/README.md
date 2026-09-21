@@ -15,5 +15,3 @@ Recommended tooling areas:
 Tools should be deterministic and should fail loudly when an expected contract is missing.
 
 Do not place real credentials in tool configuration or test fixtures.
-
-R6 TV-IP reboot persistence is defined in [REGRESSION_GUARD.md](./REGRESSION_GUARD.md).
