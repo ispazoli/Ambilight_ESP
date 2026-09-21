@@ -93,6 +93,19 @@ for token in ["FIXED_MAPPER_SEGMENTS=12", "FIXED_MAPPER_LEDS=10"]:
         fail(f"browser fixed mapper constant missing: {token}")
 
 # Critical runtime invariants.
+# JointSPACE compatibility: Philips TV responses are observed as HTTP chunked under HTTP/1.1;
+# request HTTP/1.0 so the legacy body parser receives an unchunked response.
+if "HTTP/1.1" in fw or fw.count("HTTP/1.0") < 2:
+    fail("JointSPACE requests are not pinned to HTTP/1.0")
+# A successful TV Ambilight frame must release any stale power-state output gate.
+anchor = "goodFrames++; lastSuccessfulPoll=millis(); tvConsecutiveFailures=0;"
+anchor_i = fw.find(anchor)
+if anchor_i < 0 or "tvOutputOff=false;" not in fw[anchor_i:anchor_i+500]:
+    fail("successful Ambilight frame does not release tvOutputOff gate")
+# The watchdog still owns the offline transition; TV frame success owns the online/output release.
+watchdog_i = fw.find("if(tooManyFails || stale){ tvOnline=false; tvOutputOff=true; Serial.println(\"[TV] offline\"); }")
+if watchdog_i < 0:
+    fail("TV watchdog offline transition missing")
 # TV Master Sync + Side Clone render contract.
 for token in ["mapperSideBypassActive", "mapperLedIsClonedSide", "idx>=30", "idx<60", "idx>=90", "idx<120"]:
     if token not in fw:

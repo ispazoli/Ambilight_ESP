@@ -207,7 +207,7 @@ Preferences        prefs;
 IPAddress          tvIP = DEFAULT_TV_IP;
 ZoneRGB            targetZones[4], currentZones[4];
 WiFiClient         tvClient;
-bool               tvOnline, tvOutputOff=true;
+bool               tvOnline, tvOutputOff=false;
 unsigned long      goodFrames, badFrames;
 
 LedSegment         segments[MAX_SEGMENTS];
@@ -1056,7 +1056,7 @@ bool tvConnect(){
 // Puffer-alapú fejléc-parse (nincs String — nincs O(n²)/heap-fragmentáció).
 int tvGet(const char* path, char* buf, size_t bufLen){
   if(!tvConnect())return -1;
-  tvClient.printf("GET %s HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n",
+  tvClient.printf("GET %s HTTP/1.0\r\nHost: %s\r\nConnection: close\r\n\r\n",
                   path, tvIP.toString().c_str());
   unsigned long t0=millis(); size_t n=0; bool headersDone=false; int contentLen=-1;
   char hdr[512]; size_t hlen=0; int mi=0; static const char MARK[]="\r\n\r\n";
@@ -1090,7 +1090,7 @@ done:
 // [M3/M4] readAmbilight: brace-count korai kilépés + közvetlen deserializeJson(tvRawBuf)
 bool readAmbilight(){
   if(!tvConnect())return false;
-  tvClient.printf("GET /1/ambilight/processed HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n",
+  tvClient.printf("GET /1/ambilight/processed HTTP/1.0\r\nHost: %s\r\nConnection: close\r\n\r\n",
                   tvIP.toString().c_str());
   unsigned long t0=millis(); size_t n=0; bool headersDone=false;
   int depth=0; bool bodyStarted=false, inString=false, escape=false;
@@ -1137,6 +1137,9 @@ stop:
   if(!ok){ badFrames++; return false; }
   targetZones[0]=lt; targetZones[1]=lb; targetZones[2]=rt; targetZones[3]=rb;
   goodFrames++; lastSuccessfulPoll=millis(); tvConsecutiveFailures=0;
+  // A sikeres valódi Ambilight-keret bizonyítja, hogy a TV aktívan szolgáltat
+  // képadatot, ezért az esetleg korábban beragadt power-state tiltást feloldjuk.
+  tvOutputOff=false;
   // [FIX] Az ONLINE állapot KIZÁRÓLAG tényleges sikeres keretből származik
   //       (esemény-vezérelt), nem időzítőből → nincs többé hamis "[TV] online"
   //       közvetlenül boot után (a korábbi lastSuccessfulPoll=0 sentinel-bug).
@@ -1176,7 +1179,7 @@ void handleTVWatchdog(){
     bool tooManyFails = (tvConsecutiveFailures>=TV_FAILURES_BEFORE_OFFLINE);
     // stale csak akkor értelmezhető, ha már VOLT sikeres poll (lastSuccessfulPoll!=0)
     bool stale = (lastSuccessfulPoll!=0 && (now-lastSuccessfulPoll)>=TV_STALE_TIMEOUT_MS);
-    if(tooManyFails || stale){ tvOnline=false; Serial.println("[TV] offline"); }
+    if(tooManyFails || stale){ tvOnline=false; tvOutputOff=true; Serial.println("[TV] offline"); }
   }
 }
 
