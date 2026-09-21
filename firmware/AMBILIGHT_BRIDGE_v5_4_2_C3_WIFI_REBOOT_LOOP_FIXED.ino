@@ -165,7 +165,8 @@ uint8_t            smoothing=DEFAULT_SMOOTHING, blackThreshold=DEFAULT_BLACK_THR
 bool     dynBrightEnabled;      uint8_t dynBrightMin, dynBrightMax, dynBrightResp;
 uint8_t  tvDynBright, moodDynBright;
 
-MoodConfig   leftMood, rightMood;
+MoodConfig   leftMood  = {1, MOOD_STATIC, 255, 200, 28, 0, 70, 65, 75, 55, 45, 2, true, false, 0};
+MoodConfig   rightMood = {1, MOOD_STATIC, 255, 200, 28, 1, 70, 65, 75, 55, 45, 2, true, false, 120};
 MoodLinkMode moodLinkMode;
 uint16_t     moodLeftStart=30, moodLeftCount=30, moodRightStart=90, moodRightCount=30;
 bool         moodDynEnabled;    uint8_t moodDynDepth=25;
@@ -1253,6 +1254,15 @@ void apiState(){
   d["goodFrames"]=goodFrames; d["badFrames"]=badFrames; d["heap"]=ESP.getFreeHeap(); d["uptime"]=millis()/1000;
   d["segmentCount"]=segmentCount; d["sideCloneEnabled"]=sideCloneEnabled; d["sideCloneBrightness"]=sideCloneBrightness;
   d["moodLinkMode"]=(uint8_t)moodLinkMode; d["tvTopoDetected"]=tvTopoDetected;
+  d["dyn_on"]=dynBrightEnabled; d["dyn_min"]=dynBrightMin; d["dyn_max"]=dynBrightMax; d["dyn_resp"]=dynBrightResp;
+  d["mood_dyn"]=moodDynEnabled; d["mood_dep"]=moodDynDepth;
+  d["tv_sync"]=tvMasterSyncEnabled; d["tv_bsync"]=tvMasterBrightnessEnabled;
+  auto moodJson=[&](JsonObject o,const MoodConfig& m){
+    o["mode"]=m.mode;o["effect"]=m.effect;o["sat"]=m.saturation;o["bri"]=m.brightness;o["speed"]=m.speed;
+    o["pal"]=m.palette;o["scale"]=m.scale;o["motion"]=m.motion;o["glow"]=m.glow;o["density"]=m.density;
+    o["turb"]=m.turbulence;o["cm"]=m.colorMode;o["auto"]=m.autoColor;o["rev"]=m.reverse;o["hue"]=m.hue;
+  };
+  moodJson(d["left_mood"].to<JsonObject>(),leftMood); moodJson(d["right_mood"].to<JsonObject>(),rightMood);
   JsonArray zc=d["zone_current"].to<JsonArray>(); JsonArray zt=d["zone_target"].to<JsonArray>(); JsonArray zones=d["zones"].to<JsonArray>();
   for(int i=0;i<4;i++){ JsonArray c=zc.add<JsonArray>(); c.add(currentZones[i].r); c.add(currentZones[i].g); c.add(currentZones[i].b); JsonArray t=zt.add<JsonArray>(); t.add(targetZones[i].r); t.add(targetZones[i].g); t.add(targetZones[i].b); JsonObject z=zones.add<JsonObject>(); z["r"]=targetZones[i].r; z["g"]=targetZones[i].g; z["b"]=targetZones[i].b; }
   JsonArray segs=d["segments"].to<JsonArray>();
@@ -1343,6 +1353,15 @@ void apiConfig(){
   if(server.hasArg("brightness")) globalBrightness=clampU8(server.arg("brightness").toInt());
   if(server.hasArg("smoothing"))  smoothing=clampU8(server.arg("smoothing").toInt());
   if(server.hasArg("blackThreshold")) blackThreshold=clampU8(server.arg("blackThreshold").toInt());
+  if(server.hasArg("dyn_on")) dynBrightEnabled=server.arg("dyn_on").toInt()!=0;
+  if(server.hasArg("dyn_min")) dynBrightMin=clampU8(server.arg("dyn_min").toInt());
+  if(server.hasArg("dyn_max")) dynBrightMax=clampU8(server.arg("dyn_max").toInt());
+  if(server.hasArg("dyn_resp")) dynBrightResp=clampU8(server.arg("dyn_resp").toInt());
+  if(server.hasArg("mood_dyn")) moodDynEnabled=server.arg("mood_dyn").toInt()!=0;
+  if(server.hasArg("mood_dep")) moodDynDepth=clampU8(server.arg("mood_dep").toInt());
+  if(server.hasArg("tv_sync")) tvMasterSyncEnabled=server.arg("tv_sync").toInt()!=0;
+  if(server.hasArg("tv_bsync")) tvMasterBrightnessEnabled=server.arg("tv_bsync").toInt()!=0;
+  if(dynBrightMin>dynBrightMax){uint8_t t=dynBrightMin;dynBrightMin=dynBrightMax;dynBrightMax=t;}
   saveConfig();
   server.send(200,"application/json","{\"ok\":true}");
 }
@@ -1428,19 +1447,33 @@ void apiTopology(){ addCorsHeaders(); JsonDocument d; d["detected"]=tvTopoDetect
 
 void apiMood(){
   if(!webAuthCheck())return;
-  if(server.hasArg("leftMode"))  leftMood.effect =(uint8_t)constrain(server.arg("leftMode").toInt(),0,(int)MOOD_EFFECT_MAX);
-  if(server.hasArg("rightMode")) rightMood.effect=(uint8_t)constrain(server.arg("rightMode").toInt(),0,(int)MOOD_EFFECT_MAX);
-  if(server.hasArg("leftHue"))   leftMood.hue = (uint16_t)constrain(server.arg("leftHue").toInt(),0,359);
-  if(server.hasArg("rightHue"))  rightMood.hue= (uint16_t)constrain(server.arg("rightHue").toInt(),0,359);
-  if(server.hasArg("leftSat"))   leftMood.saturation = clampU8(server.arg("leftSat").toInt());
-  if(server.hasArg("rightSat"))  rightMood.saturation= clampU8(server.arg("rightSat").toInt());
-  if(server.hasArg("leftVal"))   leftMood.brightness = clampU8(server.arg("leftVal").toInt());
-  if(server.hasArg("rightVal"))  rightMood.brightness= clampU8(server.arg("rightVal").toInt());
-  if(server.hasArg("linkMode"))  moodLinkMode=(MoodLinkMode)constrain(server.arg("linkMode").toInt(),0,3);
+  auto readSide=[&](const String& p,MoodConfig& m,const char* legacyEffect,const char* legacyHue,const char* legacySat,const char* legacyVal){
+    if(server.hasArg(p+"Mode")) m.mode=server.arg(p+"Mode").toInt()!=0;
+    if(server.hasArg(p+"Effect")) m.effect=(uint8_t)constrain(server.arg(p+"Effect").toInt(),0,(int)MOOD_EFFECT_MAX);
+    else if(server.hasArg(legacyEffect)) m.effect=(uint8_t)constrain(server.arg(legacyEffect).toInt(),0,(int)MOOD_EFFECT_MAX);
+    if(server.hasArg(p+"Hue")) m.hue=(uint16_t)constrain(server.arg(p+"Hue").toInt(),0,359);
+    else if(server.hasArg(legacyHue)) m.hue=(uint16_t)constrain(server.arg(legacyHue).toInt(),0,359);
+    if(server.hasArg(p+"Sat")) m.saturation=clampU8(server.arg(p+"Sat").toInt());
+    else if(server.hasArg(legacySat)) m.saturation=clampU8(server.arg(legacySat).toInt());
+    if(server.hasArg(p+"Val")) m.brightness=clampU8(server.arg(p+"Val").toInt());
+    else if(server.hasArg(legacyVal)) m.brightness=clampU8(server.arg(legacyVal).toInt());
+    if(server.hasArg(p+"Speed")) m.speed=clampU8(server.arg(p+"Speed").toInt());
+    if(server.hasArg(p+"Palette")) m.palette=clampU8(server.arg(p+"Palette").toInt());
+    if(server.hasArg(p+"Scale")) m.scale=clampU8(server.arg(p+"Scale").toInt());
+    if(server.hasArg(p+"Motion")) m.motion=clampU8(server.arg(p+"Motion").toInt());
+    if(server.hasArg(p+"Glow")) m.glow=clampU8(server.arg(p+"Glow").toInt());
+    if(server.hasArg(p+"Density")) m.density=clampU8(server.arg(p+"Density").toInt());
+    if(server.hasArg(p+"Turbulence")) m.turbulence=clampU8(server.arg(p+"Turbulence").toInt());
+    if(server.hasArg(p+"ColorMode")) m.colorMode=clampU8(server.arg(p+"ColorMode").toInt());
+    if(server.hasArg(p+"Auto")) m.autoColor=server.arg(p+"Auto").toInt()!=0;
+    if(server.hasArg(p+"Reverse")) m.reverse=server.arg(p+"Reverse").toInt()!=0;
+  };
+  readSide("left",leftMood,"leftMode","leftHue","leftSat","leftVal");
+  readSide("right",rightMood,"rightMode","rightHue","rightSat","rightVal");
+  if(server.hasArg("linkMode")) moodLinkMode=(MoodLinkMode)constrain(server.arg("linkMode").toInt(),0,3);
   saveConfig();
   server.send(200,"application/json","{\"ok\":true}");
 }
-
 /* ===== LED TEST + OTA =================================================== */
 
 void apiLedTest(){
@@ -1822,7 +1855,14 @@ static CRGB moodColor(const MoodConfig& m,uint16_t i,uint16_t count,uint8_t side
   switch(fx){case MOOD_BREATHE:v=(uint8_t)(m.brightness*(0.45f+0.55f*(0.5f+0.5f*sin(now/500.0f))));break;case MOOD_RAINBOW:h+=phase;break;case MOOD_SLOW_COLOR:h+=phase/8;break;case MOOD_WARM:h=18;v=min<uint8_t>(255,m.brightness);break;case MOOD_COLOR_WAVE:h+=(uint8_t)(p*96)+phase;break;case MOOD_COMET:h+=phase;v=(uint8_t)(m.brightness*(0.25f+0.75f*fmax(0.0f,1.0f-fabs(p-fmod(now/1200.0f,1.0f))*4.0f)));break;case MOOD_TWINKLE: v=(uint8_t)(m.brightness*((((i*37u+phase*13u)%100)<(20+m.density))?1.0f:0.2f));break;case MOOD_PULSE:v=(uint8_t)(m.brightness*(0.2f+0.8f*(0.5f+0.5f*sin(now/180.0f))));break;case MOOD_METEOR:h+=phase;break;case MOOD_CYBER:h=(uint8_t)(p*40)+phase;break;case MOOD_SPECTRAL:h=(uint8_t)(p*255)+phase;break;default:break;}
   CHSV hsv(h,m.saturation,v); CRGB c; hsv2rgb_rainbow(hsv,c); return c;
 }
-void renderMoodSide(const MoodConfig& m,uint16_t start,uint16_t count,bool rev,uint8_t sideOffset=0){for(uint16_t i=0;i<count;i++){uint16_t idx=rev?(start+count-1-i):(start+i);if(idx<LED_COUNT)leds[idx]=moodColor(m,i,count,sideOffset);}}
+void renderMoodSide(const MoodConfig& m,uint16_t start,uint16_t count,bool rev,uint8_t sideOffset=0){
+  for(uint16_t i=0;i<count;i++){
+    uint16_t idx=rev?(start+count-1-i):(start+i);
+    if(idx>=LED_COUNT)continue;
+    if(m.mode==0) leds[idx]=CRGB::Black;
+    else leds[idx]=moodColor(m,i,count,sideOffset);
+  }
+}
 void renderMood(){MoodConfig L=leftMood,R=rightMood;bool revR=false;uint8_t offR=0;if(moodLinkMode==MOOD_LINK_MIRROR){R=L;}else if(moodLinkMode==MOOD_LINK_SYMMETRIC){R=L;revR=true;R.hue=(R.hue+180)%360;}else if(moodLinkMode==MOOD_LINK_FLOW){R=L;offR=128;}renderMoodSide(L,moodLeftStart,moodLeftCount,false,0);renderMoodSide(R,moodRightStart,moodRightCount,revR,offR);}
 
 /* ===== PERSISTENCE (NVS) =============================================== */
@@ -1838,7 +1878,23 @@ static void remapFx(uint8_t a,uint8_t b){leftMood.effect=(uint8_t)constrain(a,0,
 void saveConfig(){
   prefs.begin("cfg",false); prefs.putUChar("cfg_ver",CFG_VERSION); prefs.putUChar("bright",globalBrightness); prefs.putUChar("smooth",smoothing); prefs.putUChar("black",blackThreshold);
   prefs.putString("tvip",tvIP.toString()); prefs.putString("webpw",webAuthPassword); prefs.putUChar("lm_eff",leftMood.effect);prefs.putUChar("rm_eff",rightMood.effect);prefs.putUShort("lm_hue",leftMood.hue);prefs.putUShort("rm_hue",rightMood.hue);
-  prefs.putUChar("lm_sat",leftMood.saturation);prefs.putUChar("rm_sat",rightMood.saturation);prefs.putUChar("lm_val",leftMood.brightness);prefs.putUChar("rm_val",rightMood.brightness);prefs.putUChar("linkmode",(uint8_t)moodLinkMode);
+  prefs.putBool("lm_mode",leftMood.mode!=0); prefs.putBool("rm_mode",rightMood.mode!=0);
+  prefs.putUChar("lm_sat",leftMood.saturation);prefs.putUChar("rm_sat",rightMood.saturation);prefs.putUChar("lm_val",leftMood.brightness);prefs.putUChar("rm_val",rightMood.brightness);
+  prefs.putUChar("lm_sp",leftMood.speed);prefs.putUChar("rm_sp",rightMood.speed);
+  prefs.putUChar("lm_pal",leftMood.palette);prefs.putUChar("rm_pal",rightMood.palette);
+  prefs.putUChar("lm_sc",leftMood.scale);prefs.putUChar("rm_sc",rightMood.scale);
+  prefs.putUChar("lm_mot",leftMood.motion);prefs.putUChar("rm_mot",rightMood.motion);
+  prefs.putUChar("lm_gl",leftMood.glow);prefs.putUChar("rm_gl",rightMood.glow);
+  prefs.putUChar("lm_den",leftMood.density);prefs.putUChar("rm_den",rightMood.density);
+  prefs.putUChar("lm_tur",leftMood.turbulence);prefs.putUChar("rm_tur",rightMood.turbulence);
+  prefs.putUChar("lm_cm",leftMood.colorMode);prefs.putUChar("rm_cm",rightMood.colorMode);
+  prefs.putBool("lm_auto",leftMood.autoColor);prefs.putBool("rm_auto",rightMood.autoColor);
+  prefs.putBool("lm_rev",leftMood.reverse);prefs.putBool("rm_rev",rightMood.reverse);
+  prefs.putUChar("lm_eff",leftMood.effect);prefs.putUChar("rm_eff",rightMood.effect);prefs.putUShort("lm_hue",leftMood.hue);prefs.putUShort("rm_hue",rightMood.hue);
+  prefs.putUChar("linkmode",(uint8_t)moodLinkMode);
+  prefs.putBool("dyn_en",dynBrightEnabled);prefs.putUChar("dyn_min",dynBrightMin);prefs.putUChar("dyn_max",dynBrightMax);prefs.putUChar("dyn_resp",dynBrightResp);
+  prefs.putBool("mood_dyn",moodDynEnabled);prefs.putUChar("mood_dep",moodDynDepth);
+  prefs.putBool("tv_sync",tvMasterSyncEnabled);prefs.putBool("tv_bsync",tvMasterBrightnessEnabled);
   prefs.putBool("clone_en",sideCloneEnabled);prefs.putUChar("clone_br",sideCloneBrightness);prefs.putUShort("cl_st",cloneLeftStart);prefs.putUShort("cl_ct",cloneLeftCount);prefs.putUShort("cr_st",cloneRightStart);prefs.putUShort("cr_ct",cloneRightCount);prefs.putBool("cl_rev",cloneLeftRev);prefs.putBool("cr_rev",cloneRightRev);
   prefs.end(); saveMapper();
 }
@@ -1854,7 +1910,18 @@ void loadConfig(){
 #ifdef SECRET_TV_IP
   if(tvIP==IPAddress(0,0,0,0))tvIP=IPAddress(SECRET_TV_IP);
 #endif
-  leftMood.effect=prefs.getUChar("lm_eff",0);rightMood.effect=prefs.getUChar("rm_eff",0);leftMood.hue=prefs.getUShort("lm_hue",0);rightMood.hue=prefs.getUShort("rm_hue",120);leftMood.saturation=prefs.getUChar("lm_sat",255);rightMood.saturation=prefs.getUChar("rm_sat",255);leftMood.brightness=prefs.getUChar("lm_val",200);rightMood.brightness=prefs.getUChar("rm_val",200);moodLinkMode=(MoodLinkMode)constrain(prefs.getUChar("linkmode",0),0,3);
+  leftMood.mode=prefs.getBool("lm_mode",true); rightMood.mode=prefs.getBool("rm_mode",true);
+  leftMood.effect=prefs.getUChar("lm_eff",0);rightMood.effect=prefs.getUChar("rm_eff",0);leftMood.hue=prefs.getUShort("lm_hue",0);rightMood.hue=prefs.getUShort("rm_hue",120);
+  leftMood.saturation=prefs.getUChar("lm_sat",255);rightMood.saturation=prefs.getUChar("rm_sat",255);leftMood.brightness=prefs.getUChar("lm_val",200);rightMood.brightness=prefs.getUChar("rm_val",200);
+  leftMood.speed=prefs.getUChar("lm_sp",28);rightMood.speed=prefs.getUChar("rm_sp",28);leftMood.palette=prefs.getUChar("lm_pal",0);rightMood.palette=prefs.getUChar("rm_pal",1);
+  leftMood.scale=prefs.getUChar("lm_sc",70);rightMood.scale=prefs.getUChar("rm_sc",70);leftMood.motion=prefs.getUChar("lm_mot",65);rightMood.motion=prefs.getUChar("rm_mot",65);
+  leftMood.glow=prefs.getUChar("lm_gl",75);rightMood.glow=prefs.getUChar("rm_gl",75);leftMood.density=prefs.getUChar("lm_den",55);rightMood.density=prefs.getUChar("rm_den",55);
+  leftMood.turbulence=prefs.getUChar("lm_tur",45);rightMood.turbulence=prefs.getUChar("rm_tur",45);leftMood.colorMode=prefs.getUChar("lm_cm",2);rightMood.colorMode=prefs.getUChar("rm_cm",2);
+  leftMood.autoColor=prefs.getBool("lm_auto",false);rightMood.autoColor=prefs.getBool("rm_auto",false);leftMood.reverse=prefs.getBool("lm_rev",false);rightMood.reverse=prefs.getBool("rm_rev",false);
+  moodLinkMode=(MoodLinkMode)constrain(prefs.getUChar("linkmode",0),0,3);
+  dynBrightEnabled=prefs.getBool("dyn_en",false);dynBrightMin=prefs.getUChar("dyn_min",0);dynBrightMax=prefs.getUChar("dyn_max",255);dynBrightResp=prefs.getUChar("dyn_resp",35);
+  moodDynEnabled=prefs.getBool("mood_dyn",false);moodDynDepth=prefs.getUChar("mood_dep",25);
+  tvMasterSyncEnabled=prefs.getBool("tv_sync",true);tvMasterBrightnessEnabled=prefs.getBool("tv_bsync",true);
   sideCloneEnabled=prefs.getBool("clone_en",true);sideCloneBrightness=prefs.getUChar("clone_br",255);cloneLeftStart=prefs.getUShort("cl_st",30);cloneLeftCount=prefs.getUShort("cl_ct",30);cloneRightStart=prefs.getUShort("cr_st",90);cloneRightCount=prefs.getUShort("cr_ct",30);cloneLeftRev=prefs.getBool("cl_rev",false);cloneRightRev=prefs.getBool("cr_rev",false);
   prefs.end();
   if(!mapperValid(segments[0])){}
