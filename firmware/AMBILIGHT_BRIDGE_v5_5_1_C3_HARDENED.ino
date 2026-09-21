@@ -1,7 +1,35 @@
 /* ============================================================================
-   AMBILIGHT BRIDGE v5.4.2 — WIFI REBOOT LOOP FIXED / MASTER
+   AMBILIGHT BRIDGE v5.5.0-C3-HARDENED
    ============================================================================
-   Ez a v5.3.0 audit alapján javított változat. Javított hibák:
+   v5.5.0 változások (biztonság + C3-optimalizálás + stabilitás):
+     [SEC] Webes jelszó: nyílt szöveg helyett sózott SHA-256 hash (webslt/webhsh);
+           konstans-idejű összehasonlítás; Basic-auth manuális ellenőrzése.
+     [SEC] DNS-rebind védelem (hostAllowed) + CORS az Origin-t tükrözi (nem vak *).
+     [SEC] Háromtállapotú auth: SETUP (friss, config nyitva/OTA tiltva),
+           ENABLED (jelszó → minden védett), DISABLED (tudatos opt-out).
+           Így az első konfiguráció nem akad el 403-on, de az OTA jelszó nélkül tiltott.
+     [PERF] Mood-motor teljesen fixpontos/egész számos (sin8/beat8/beatsin8/scale8)
+            — nincs float sin/fabs/fmod (ESP32-C3 RISC-V, nincs hardveres FPU).
+     [FIX] tvOnline KIZÁRÓLAG eseményből (readAmbilight() sikeres keret) → nincs
+           többé hamis "[TV] online" boot után; a watchdog csak OFFLINE-ra vált.
+     [FIX] loadConfig(): a mapper a séma-migráció ELŐTT töltődik, hogy a
+           migrációs saveConfig()->saveMapper() ne írja felül a tárolt mappinget.
+     [FIX] loop(): TV- és mood-render kölcsönösen kizárólagos, egy show()/keret.
+     [WDT] task watchdog a loop()-ra (core-verzió szerint guardolt).
+     [NET] WiFi setAutoReconnect + periodikus, túlcsordulás-biztos backoff.
+     [CFG] CONFIG_SCHEMA_VERSION 8 -> 9.
+
+   ⚠ REGRESSION GUARD — eszközön kötelezően tesztelendő (itt nem fordítható/futtatható):
+     R1) Auth Basic ellenőrzés: helyes/rossz jelszó, rate-limit (5x/60s), OTA tiltva jelszó nélkül.
+     R2) Bootstrap: friss NVS → SETUP → saveConfig() lánc (config/tv/mapper/mood/sideclone)
+         NEM kap 403-at; jelszó beállítás után mind auth-ot kér.
+     R3) *** CONFIG + MAPPER MIGRÁCIÓ EGYÜTT ***: v8 NVS-ről indítás, egyedi LED-mapping
+         beállítva → reboot v9 firmware-rel → a mapping MEGMARAD (nem íródik felül),
+         cfg_ver=9 lesz. Friss telepítés → alap mapping.
+     R4) tvOnline: boot után NINCS "[TV] online", amíg nincs sikeres readAmbilight().
+     R5) Mood effektek (BREATHE/PULSE/COMET) vizuálisan helyesek fixpontos matekkal.
+   ----------------------------------------------------------------------------
+   Korábbi (v5.4.2) javitások:
      [K1] apiWifi(): hiányzó prefs.begin()/end() → WiFi creds nem mentődtek
      [K2] v5→v6 migráció: a tárolt értéket képezi le (nem a defaultot);
           friss telepítéskor a migráció kimarad (nincs korrupció)
@@ -33,6 +61,10 @@
 #include <WiFi.h>
 #include <math.h>
 #include <esp_task_wdt.h>
+#include <esp_random.h>
+#include <esp_system.h>
+#include "mbedtls/sha256.h"
+#include "mbedtls/base64.h"
 #include <ESPmDNS.h>
 #include <WebSocketsServer.h>
 
@@ -55,7 +87,20 @@
 
 char    wifiSSID[64]        = "";
 char    wifiPassword[64]    = "";
-char    webAuthPassword[65] = "";      // "" = auth disabled
+// A webes jelszót NEM tároljuk nyílt szövegben. Csak sózott SHA-256 hash + só
+// kerül az NVS-be, illetve a memóriába.
+//
+// Három auth-állapot (a bootstrap/első-konfiguráció problemája miatt):
+//   SETUP    : friss eszköz, még nincs jelszó és nincs tudatos lemondás róla
+//              → a config-végpontok NYITVA (csak LAN, hostAllowed), hogy az első
+//                beállítás egyáltalán elvégezhető legyen; OTA TILTVA.
+//   ENABLED  : van jelszó (webAuthConfigured) → minden mutáló végpont + OTA auth-hoz kötött.
+//   DISABLED : a felhasználó tudatosan lemondott a jelszóról (webAuthOptOut)
+//              → config-végpontok NYITVA (LAN); OTA továbbra is TILTVA (nincs mihez auth-olni).
+uint8_t webAuthSalt[16]     = {0};
+uint8_t webAuthHash[32]     = {0};
+bool    webAuthConfigured   = false;
+bool    webAuthOptOut       = false;   // true = felhasználó tudatosan "nincs jelszó"
 
 // Opcionális lokális override (untracked). Példa secrets.h:
 //   #define SECRET_WIFI_SSID  "MySSID"
@@ -66,8 +111,8 @@ char    webAuthPassword[65] = "";      // "" = auth disabled
   #include "secrets.h"
 #endif
 
-#define FIRMWARE_VERSION        "5.4.2-C3-WIFI-REBOOT-LOOP-FIXED"
-#define CONFIG_SCHEMA_VERSION   8
+#define FIRMWARE_VERSION        "5.5.1-C3-HARDENED"
+#define CONFIG_SCHEMA_VERSION   10
 #define FW_CONTRACT_VERSION     1
 
 // Placeholder — web UI-ból felülbirálható. Nem valódi cím.
@@ -152,7 +197,7 @@ WebServer          server(8080);
 WebSocketsServer   wsServer(81);
 Preferences        prefs;
 
-IPAddress          tvIP;
+IPAddress          tvIP = DEFAULT_TV_IP;
 ZoneRGB            targetZones[4], currentZones[4];
 WiFiClient         tvClient;
 bool               tvOnline, tvOutputOff=true;
@@ -214,14 +259,9 @@ static char tvJsonBuf[8192];                // a rövid GET kérések válaszáh
 #define TV_STALE_TIMEOUT_MS         1000
 #define TV_FAILURES_BEFORE_OFFLINE  2
 #define TV_MASTER_POLL_MS           5000
+#define TV_AMBILIGHT_READ_TIMEOUT_MS 800   // teljes ambilight-keret olvasási plafon
 #define MOOD_FRAME_INTERVAL_MS      40
-
-/* ===== FORWARD DECLARATIONS ============================================ */
-// Explicit prototypes: Arduino's automatic prototype generator can miss
-// functions when a large embedded raw-string HTML block is present.
-void setDefaultMapping();
-void saveConfig();
-bool detectTVTopology();
+#define WDT_TIMEOUT_MS              8000   // task watchdog időtúlépés (loop beragadás ellen)
 
 /* ===== UTILITIES ======================================================== */
 
@@ -236,42 +276,96 @@ uint8_t sceneLuminance() {
   return (uint8_t)(s/4);
 }
 
-/* ===== JSON EXTRACTOR (brace-counter) — rövid válaszokhoz ================= */
-
-int extractJSON(const char* raw, unsigned rawLen, String& out) {
-  int start=-1;
-  for(unsigned i=0;i<rawLen;i++){ if(raw[i]=='{'){start=i;break;} }
-  if(start<0) return -1;
-  int depth=0; bool inString=false, escape=false;
-  for(unsigned i=start;i<rawLen;i++){
-    char c=raw[i];
-    if(escape){escape=false;continue;}
-    if(c=='\\'){escape=true;continue;}
-    if(c=='"'){inString=!inString;continue;}
-    if(inString)continue;
-    if(c=='{')depth++; else if(c=='}'){depth--;if(depth==0){out=String(raw+start).substring(0,i-start+1);return i;}}
-  }
-  return -1;
-}
-
 /* ===== CORS + AUTH ====================================================== */
 
+/* ---- Sózott SHA-256 jelszó-kezelés (nincs nyílt szöveg sehol) ------------- */
+static void hashPassword(const char* pw, const uint8_t* salt, uint8_t out[32]){
+  mbedtls_sha256_context c; mbedtls_sha256_init(&c);
+  mbedtls_sha256_starts(&c,0);                 // 0 = SHA-256
+  mbedtls_sha256_update(&c,salt,16);
+  mbedtls_sha256_update(&c,(const uint8_t*)pw,strlen(pw));
+  mbedtls_sha256_finish(&c,out);
+  mbedtls_sha256_free(&c);
+}
+// Konstans-idejű összehasonlítás (timing-oldalcsatorna ellen).
+static bool ctEqual(const uint8_t* a,const uint8_t* b,size_t n){ uint8_t d=0; for(size_t i=0;i<n;i++) d|=a[i]^b[i]; return d==0; }
+
+// Új webes jelszó beállítása (üres → auth kikapcsolva). Új sót generál.
+void setWebAuthPassword(const char* pw){
+  if(pw==nullptr || pw[0]=='\0'){ webAuthConfigured=false; memset(webAuthHash,0,32); memset(webAuthSalt,0,16); return; }
+  for(int i=0;i<16;i++) webAuthSalt[i]=(uint8_t)esp_random();
+  hashPassword(pw,webAuthSalt,webAuthHash);
+  webAuthConfigured=true;
+}
+
+// DNS-rebinding védelem: csak ismert Host fejléceket fogadunk el.
+bool hostAllowed(){
+  String h=server.hostHeader();
+  int c=h.indexOf(':'); if(c>=0) h=h.substring(0,c);
+  h.toLowerCase();
+  if(h.length()==0) return true;                       // némely kliens nem küld Host-ot
+  if(h=="ambilight.local"||h=="localhost"||h=="127.0.0.1") return true;
+  if(WiFi.isConnected() && h==WiFi.localIP().toString()) return true;
+  if(provisioningMode && h==WiFi.softAPIP().toString()) return true;
+  return false;
+}
+
 void addCorsHeaders(){
-  // Megjegyzés: a böngésző-app (GitHub Pages) miatt wildcard origin szükséges.
-  // Biztonságért: provisioning után ÁLLÍTS webAuth jelszót (POST /api/auth).
-  server.sendHeader("Access-Control-Allow-Origin","*");
+  // Anti-rebinding a Host-fejléc ellenőrzése (hostAllowed). A CORS az Origin-t
+  // tükrözi vissza (nem vak "*"), így hitelesített kérések is működnek, míg a
+   // rebinding-et a Host-szűrés blokkolja.
+  String origin = server.hasHeader("Origin") ? server.header("Origin") : "";
+  if(origin.length()){
+    server.sendHeader("Access-Control-Allow-Origin",origin);
+    server.sendHeader("Access-Control-Allow-Credentials","true");
+  } else {
+    server.sendHeader("Access-Control-Allow-Origin","*");
+  }
+  server.sendHeader("Vary","Origin");
   server.sendHeader("Access-Control-Allow-Methods","GET,POST,OPTIONS");
   server.sendHeader("Access-Control-Allow-Headers","Authorization, Content-Type");
   server.sendHeader("Access-Control-Max-Age","600");
 }
+
+// Basic auth ellenőrzése a tárolt sózott hash ellen (nincs nyílt jelszó összehas.).
+bool verifyBasicAuth(){
+  if(!webAuthConfigured) return false;
+  if(!server.hasHeader("Authorization")) return false;
+  String hv=server.header("Authorization");
+  if(!hv.startsWith("Basic ")) return false;
+  String b64=hv.substring(6); b64.trim();
+  uint8_t dec[160]; size_t dlen=0;
+  if(mbedtls_base64_decode(dec,sizeof(dec)-1,&dlen,(const uint8_t*)b64.c_str(),b64.length())!=0) return false;
+  dec[dlen]='\0';
+  char* creds=(char*)dec;
+  char* colon=strchr(creds,':');
+  if(!colon){ memset(dec,0,sizeof(dec)); return false; }
+  *colon='\0';
+  const char* user=creds; const char* pass=colon+1;
+  bool ok=false;
+  if(strcmp(user,"admin")==0){ uint8_t cand[32]; hashPassword(pass,webAuthSalt,cand); ok=ctEqual(cand,webAuthHash,32); memset(cand,0,32); }
+  memset(dec,0,sizeof(dec));
+  return ok;
+}
+
 static unsigned long authFailCount,authLastFail;
+// Mutáló végpontok őre: CORS + Host-szűrés + rate-limit + kötelező auth.
 bool webAuthCheck(){
   addCorsHeaders();
+  if(!hostAllowed()){ server.send(403,"application/json","{\"ok\":false,\"err\":\"bad host\"}"); return false; }
   unsigned long now=millis();
   if(authFailCount>=5&&(now-authLastFail)<60000){server.send(429,"text/plain","Too many auth attempts");return false;}
   if(authFailCount>=5&&(now-authLastFail)>=60000)authFailCount=0;
-  if(strlen(webAuthPassword)==0)return true;
-  if(!server.authenticate("admin",webAuthPassword)){
+  if(!webAuthConfigured){
+    // Bootstrap-kompromisszum: jelszó nélkül a config-végpontok NYITVA maradnak,
+    // hogy az első beállítás (TV IP, mapper, mood stb.) egyáltalán elvégezhető
+    // legyen. A támadási felületet a DNS-rebind szűrés (hostAllowed) korlátozza
+    // a helyi hálózatra, a kritikus OTA pedig jelszó nélkül TILTOTT (lásd webAuthSilent).
+    //   - SETUP (friss): itt engedve, a UI figyelmeztet a jelszó beállítására.
+    //   - DISABLED (webAuthOptOut): a felhasználó tudatos választása.
+    return true;
+  }
+  if(!verifyBasicAuth()){
     authFailCount++;authLastFail=now;
     server.requestAuthentication(BASIC_AUTH,"Ambilight Bridge");
     return false;
@@ -279,9 +373,11 @@ bool webAuthCheck(){
   authFailCount=0; return true;
 }
 // Csendes auth-ellenőrzés (nem küld választ) — az OTA upload handlerhez.
+// Jelszó nélkül az OTA TILTOTT (korábban nyílt volt — kritikus lyuk).
 bool webAuthSilent(){
-  if(strlen(webAuthPassword)==0)return true;
-  return server.authenticate("admin",webAuthPassword);
+  if(!hostAllowed()) return false;
+  if(!webAuthConfigured) return false;
+  return verifyBasicAuth();
 }
 void handleCorsPreflight(){addCorsHeaders();server.send(204,"text/plain","");}
 
@@ -572,7 +668,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--cyan);cursor:poin
 <section class="page" id="page-tv">
   <div class="g2">
     <div class="card"><div class="cardHead"><span class="cardIcon">📡</span><h3>TV <b>Kapcsolat</b></h3></div>
-      <div class="frow"><div><label>TV IP-cím</label><input id="cfgTvIP" placeholder="192.168.1.148"></div><div><label>Port</label><input value="1925 (JointSPACE)" disabled></div></div>
+      <div class="frow"><div><label>TV IP-cím</label><input id="cfgTvIP" placeholder="192.168.1.x"></div><div><label>Port</label><input value="1925 (JointSPACE)" disabled></div></div>
       <div class="checkRow"><input type="checkbox" id="cfgTvSync"><label>TV Master Sync</label></div>
       <div class="checkRow"><input type="checkbox" id="cfgTvBSync"><label>TV fényerő követése</label></div>
       <p style="font-size:10px;color:var(--muted);margin-top:8px">IP módosítás után ments és indítsd újra az ESP32‑t.</p>
@@ -1014,7 +1110,7 @@ function normalizeState(s){
 function applyConfig(raw){
   const s=normalizeState(raw);
   config={...(config||{}),...s};
-  setVal("cfgTvIP",s.tv_ip||"192.168.1.148");$("cfgTvSync").checked=!!s.tv_sync;$("cfgTvBSync").checked=!!s.tv_bsync;
+  setVal("cfgTvIP",s.tv_ip||"");$("cfgTvSync").checked=!!s.tv_sync;$("cfgTvBSync").checked=!!s.tv_bsync;
   $("cfgCloneOn").checked=!!s.clone_on;setVal("cfgCloneBri",s.clone_bri??255);$("cfgCloneBriV").textContent=s.clone_bri??255;
   setVal("cfgCloneLS",s.clone_l_start??30);setVal("cfgCloneLC",s.clone_l_count??30);
   setVal("cfgCloneRS",s.clone_r_start??90);setVal("cfgCloneRC",s.clone_r_count??30);
@@ -1144,7 +1240,13 @@ async function refreshAuthState(){
   try{
     const a=await apiGet("/api/auth");
     const b=$("authStateBadge");
-    if(b){b.textContent=a.enabled?"BEKAPCSOLVA":"KIKAPCSOLVA";b.className="sceneBadge "+(a.enabled?"action":"calm")}
+    if(b){
+      if(a.enabled){b.textContent="BEKAPCSOLVA";b.className="sceneBadge action";}
+      else if(a.setup){b.textContent="BEÁLLÍTÁS SZÜKSÉGES";b.className="sceneBadge action";}
+      else {b.textContent="KIKAPCSOLVA";b.className="sceneBadge calm";}
+    }
+    // Első indításkor (setup) figyelmeztetés: a config nyitva, de az OTA jelszó nélkül tiltott.
+    if(a.setup){ toast("Ajánlott jelszót beállítani — OTA-frissítés csak jelszóval elérhető",1); }
     const c=$("cfgAuthOn");if(c)c.checked=!!a.enabled;
   }catch(e){}
 }
@@ -1426,17 +1528,39 @@ void apiTV(){
 void apiAuth(){
   if(server.method()==HTTP_GET){
     addCorsHeaders();
-    server.send(200,"application/json",strlen(webAuthPassword)>0?"{\"enabled\":true}":"{\"enabled\":false}");
+    if(!hostAllowed()){ server.send(403,"application/json","{\"ok\":false,\"err\":\"bad host\"}"); return; }
+    // enabled = van jelszó; setup = friss (se jelszó, se tudatos lemondás);
+    // optOut = a felhasználó tudatosan lemondott a jelszóról.
+    bool setup = (!webAuthConfigured && !webAuthOptOut);
+    char buf[80];
+    snprintf(buf,sizeof(buf),"{\"enabled\":%s,\"setup\":%s,\"optOut\":%s}",
+             webAuthConfigured?"true":"false", setup?"true":"false", webAuthOptOut?"true":"false");
+    server.send(200,"application/json",buf);
     return;
   }
-  if(!webAuthCheck())return;
+  addCorsHeaders();
+  if(!hostAllowed()){ server.send(403,"application/json","{\"ok\":false,\"err\":\"bad host\"}"); return; }
+  // Ha már van jelszó, a módosításhoz (újraírás VAGY kikapcsolás) a jelenlegit
+  // igazolni kell (ne lehessen feltörés nélkül felülírni/kikapcsolni).
+  if(webAuthConfigured && !verifyBasicAuth()){
+    server.requestAuthentication(BASIC_AUTH,"Ambilight Bridge");
+    return;
+  }
   if(server.hasArg("password")){
     String p=server.arg("password");
     if(p.length()<64){
-      strncpy(webAuthPassword,p.c_str(),sizeof(webAuthPassword)-1);
-      webAuthPassword[sizeof(webAuthPassword)-1]='\0';
+      if(p.length()==0){
+        // Üres jelszó = tudatos lemondás az auth-ról (DISABLED állapot).
+        setWebAuthPassword("");
+        webAuthOptOut=true;
+      } else {
+        setWebAuthPassword(p.c_str());
+        webAuthOptOut=false;
+      }
       saveConfig();
-      server.send(200,"application/json",strlen(webAuthPassword)>0?"{\"ok\":true,\"enabled\":true}":"{\"ok\":true,\"enabled\":false}");
+      char buf[64];
+      snprintf(buf,sizeof(buf),"{\"ok\":true,\"enabled\":%s}",webAuthConfigured?"true":"false");
+      server.send(200,"application/json",buf);
       return;
     }
   }
@@ -1629,6 +1753,10 @@ void setupRoutes(){
 void startWebServices(){
   if(webStarted)return;
   setupRoutes();
+  // A manuális Basic-auth ellenőrzéshez és a CORS Origin-tükrözéshez
+  // össze kell gyűjteni ezeket a fejléceket.
+  static const char* COLLECT_HEADERS[]={"Authorization","Origin"};
+  server.collectHeaders(COLLECT_HEADERS,2);
   server.begin();
   wsServer.begin();
   wsServer.onEvent(wsEvent);
@@ -1691,6 +1819,8 @@ void connectWiFi(){
   }
   WiFi.mode(WIFI_STA);
   WiFi.setHostname("ambilight");
+  WiFi.setAutoReconnect(true);            // az stack is próbálkozzon önmagától
+  WiFi.persistent(false);
   WiFi.begin(ssid.c_str(),pass.c_str());
   wifiConnectInProgress=true; wifiAttemptStarted=millis();
   staConnectDeadline=millis()+AP_FALLBACK_MS;
@@ -1718,20 +1848,36 @@ void onWiFiConnected(){
 
 void handleWiFi(){
   static wl_status_t last=WL_IDLE_STATUS;
+  static unsigned long lastReconnectAttempt=0;
+  static uint32_t reconnectBackoffMs=5000;   // 5s -> ... -> 60s cap
   wl_status_t s=WiFi.status();
 
   if(wifiConnectInProgress){
     if(s==WL_CONNECTED){
       onWiFiConnected();
-    }else if(millis()>staConnectDeadline){
+      reconnectBackoffMs=5000;
+    }else if((long)(millis()-staConnectDeadline) >= 0){   // overflow-biztos
       Serial.println("[WiFi] időtúllépés → provisioning AP");
       wifiConnectInProgress=false;
       startProvisioningAP();
     }
   }else if(!provisioningMode){
-    if(last==WL_CONNECTED && s!=WL_CONNECTED){
-      Serial.println("[WiFi] kapcsolat elveszett — újracsatlakozás");
-      WiFi.reconnect();
+    if(s==WL_CONNECTED){
+      reconnectBackoffMs=5000;             // egészséges kapcsolat: backoff reset
+    }else{
+      // Nem csak az átmenetkor, hanem periodikusan is próbálunk újracsatlakozni,
+      // növekvő backoff-fal. Így egy sikertelen reconnect nem "ragad be" reboot-ig.
+      unsigned long now=millis();
+      if(last==WL_CONNECTED){
+        Serial.println("[WiFi] kapcsolat elveszett — újracsatlakozás");
+        WiFi.reconnect();
+        lastReconnectAttempt=now;
+      }else if(now-lastReconnectAttempt>=reconnectBackoffMs){
+        Serial.printf("[WiFi] újracsatlakozási kísérlet (backoff=%lums)\n",(unsigned long)reconnectBackoffMs);
+        WiFi.reconnect();
+        lastReconnectAttempt=now;
+        reconnectBackoffMs = (reconnectBackoffMs>=60000)?60000:(reconnectBackoffMs*2);
+      }
     }
   }
 
@@ -1745,28 +1891,31 @@ bool tvConnect(){
   if(tvIP==IPAddress(0,0,0,0))return false;
   tvClient.stop();
   if(!tvClient.connect(tvIP,1925)){ return false; }
-  tvClient.setTimeout(250);   // [E2] fix 250 ms socket timeout
+  tvClient.setTimeout(TV_SOCKET_TIMEOUT_MS);   // [E2] konstansból, nem magic number
   tvSocketAlive=true;
   return true;
 }
 
-// Rövid HTTP GET a JointSPACE-hez; a válasz JSON-ját tvJsonBuf-ba olvassuk.
+// Rövid HTTP GET a JointSPACE-hez; a válasz JSON-ját buf-ba olvassuk.
+// Puffer-alapú fejléc-parse (nincs String — nincs O(n²)/heap-fragmentáció).
 int tvGet(const char* path, char* buf, size_t bufLen){
   if(!tvConnect())return -1;
   tvClient.printf("GET %s HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n",
                   path, tvIP.toString().c_str());
   unsigned long t0=millis(); size_t n=0; bool headersDone=false; int contentLen=-1;
-  // fejléc beolvasása
-  String headers="";
+  char hdr[512]; size_t hlen=0; int mi=0; static const char MARK[]="\r\n\r\n";
   while(millis()-t0<TV_BODY_READ_TIMEOUT_MS){
     while(tvClient.available()){
       char c=tvClient.read();
       if(!headersDone){
-        headers+=c;
-        if(headers.endsWith("\r\n\r\n")){
-          headersDone=true;
-          int ci=headers.indexOf("Content-Length:");
-          if(ci>=0) contentLen=headers.substring(ci+15).toInt();
+        if(hlen<sizeof(hdr)-1) hdr[hlen++]=c;
+        // \r\n\r\n határ detektálása állapotgéppel
+        if(c==MARK[mi]) mi++; else mi=(c==MARK[0])?1:0;
+        if(mi==4){
+          headersDone=true; hdr[hlen]='\0';
+          char* ci=strstr(hdr,"Content-Length:");
+          if(!ci) ci=strstr(hdr,"content-length:");
+          if(ci) contentLen=atoi(ci+15);
         }
       } else {
         if(n<bufLen-1) buf[n++]=c;
@@ -1789,14 +1938,14 @@ bool readAmbilight(){
                   tvIP.toString().c_str());
   unsigned long t0=millis(); size_t n=0; bool headersDone=false;
   int depth=0; bool bodyStarted=false, inString=false, escape=false;
-  String headers="";
+  int mi=0; static const char MARK[]="\r\n\r\n";   // fejléc-határ detektor (nincs String)
   // [M4] a törőjel-számlálóval korrekt módon észleljük a JSON végét → korai kilépés
-  while(millis()-t0<800){
+  while(millis()-t0<TV_AMBILIGHT_READ_TIMEOUT_MS){
     while(tvClient.available()){
       char c=tvClient.read();
       if(!headersDone){
-        headers+=c;
-        if(headers.endsWith("\r\n\r\n")) headersDone=true;
+        if(c==MARK[mi]) mi++; else mi=(c==MARK[0])?1:0;
+        if(mi==4) headersDone=true;
         continue;
       }
       if(n<sizeof(tvRawBuf)-1) tvRawBuf[n++]=c; else goto stop; // [M3] tvRawBuf túlcsordulás-védelem
@@ -1832,10 +1981,14 @@ stop:
   if(!ok){ badFrames++; return false; }
   targetZones[0]=lt; targetZones[1]=lb; targetZones[2]=rt; targetZones[3]=rb;
   goodFrames++; lastSuccessfulPoll=millis(); tvConsecutiveFailures=0;
+  // [FIX] Az ONLINE állapot KIZÁRÓLAG tényleges sikeres keretből származik
+  //       (esemény-vezérelt), nem időzítőből → nincs többé hamis "[TV] online"
+  //       közvetlenül boot után (a korábbi lastSuccessfulPoll=0 sentinel-bug).
+  if(!tvOnline){ tvOnline=true; Serial.println("[TV] online"); }
   return true;
 }
 
-// TV master hatalom-állapot lekérdezése (power + brightness)
+// TV master állapot lekérdezése (power + best-effort brightness)
 void pollTVMaster(){
   int n=tvGet("/1/system/power",tvJsonBuf,sizeof(tvJsonBuf));
   if(n>0){
@@ -1843,17 +1996,31 @@ void pollTVMaster(){
     if(!deserializeJson(d,tvJsonBuf)){
       const char* pw=d["powerstate"]|"";
       tvOutputOff = (strcmp(pw,"On")!=0);
+      // A TV elérhető → a master-fényerő szinkron alkalmazható (lásd effectiveBrightness).
+      // Best-effort: ha a TV küld brightness értéket, azt átvesszük; különben
+      // a beállított tvMasterBrightness marad (alapért. 255 = nincs változtatás).
+      if(d["brightness"].is<int>()){
+        int b=d["brightness"].as<int>();
+        tvMasterBrightness=(uint8_t)constrain(b,0,255);
+      }
+      tvMasterBrightnessAvailable = tvMasterBrightnessEnabled;
     }
+  } else {
+    tvMasterBrightnessAvailable = false;
   }
 }
 
 void handleTVWatchdog(){
   unsigned long now=millis();
-  if(tvConsecutiveFailures>=TV_FAILURES_BEFORE_OFFLINE){
-    if(tvOnline){ tvOnline=false; Serial.println("[TV] offline"); }
-  }
-  if(now-lastSuccessfulPoll<TV_STALE_TIMEOUT_MS){
-    if(!tvOnline){ tvOnline=true; Serial.println("[TV] online"); }
+  // [FIX] A watchdog CSAK OFFLINE-ra vált — az ONLINE mindig eseményből jön
+  //       (readAmbilight() sikeres keret). Így megszűnik a boot utáni hamis
+  //       "[TV] online" → "[TV] offline" páros, amit a lastSuccessfulPoll=0
+  //       kezdőérték okozott (now-0 < TV_STALE_TIMEOUT_MS igaz volt induláskor).
+  if(tvOnline){
+    bool tooManyFails = (tvConsecutiveFailures>=TV_FAILURES_BEFORE_OFFLINE);
+    // stale csak akkor értelmezhető, ha már VOLT sikeres poll (lastSuccessfulPoll!=0)
+    bool stale = (lastSuccessfulPoll!=0 && (now-lastSuccessfulPoll)>=TV_STALE_TIMEOUT_MS);
+    if(tooManyFails || stale){ tvOnline=false; Serial.println("[TV] offline"); }
   }
 }
 
@@ -1876,10 +2043,33 @@ CRGB gradientSource(uint8_t source,float t){
 }
 
 void renderZonesToLeds(){
+  // [FIX] blackThreshold tényleges alkalmazása: küszöb alatti zónák feketére
+  if(blackThreshold>0){
+    for(int i=0;i<4;i++){
+      uint8_t mx=max(max(targetZones[i].r,targetZones[i].g),targetZones[i].b);
+      if(mx<blackThreshold) targetZones[i]=ZoneRGB{0,0,0};
+    }
+  }
   uint8_t sm=smoothing; for(int i=0;i<4;i++){int k=255-sm;currentZones[i].r+=(targetZones[i].r-currentZones[i].r)*k/255;currentZones[i].g+=(targetZones[i].g-currentZones[i].g)*k/255;currentZones[i].b+=(targetZones[i].b-currentZones[i].b)*k/255;}
   fill_solid(leds,LED_COUNT,CRGB::Black); bool written[LED_COUNT]={false};
   for(uint8_t s=0;s<segmentCount && s<MAX_SEGMENTS;s++){LedSegment &sg=segments[s];if(!mapperValid(sg))continue;for(uint16_t i=0;i<sg.count;i++){uint16_t idx=sg.reverse?(sg.start+sg.count-1-i):(sg.start+i);float t=sg.count>1?(float)i/(float)(sg.count-1):0.0f;CRGB col=(sg.source>=SRC_GRADIENT_TOP&&sg.source<=SRC_GRADIENT_LEFT)?gradientSource(sg.source,t):zoneFromSource(sg.source);col.nscale8(sg.brightness);leds[idx]=col;written[idx]=true;}}
   if(sideCloneEnabled){CRGB l=zoneFromSource(SRC_L_AVG);CRGB r=zoneFromSource(SRC_R_AVG);l.nscale8(sideCloneBrightness);r.nscale8(sideCloneBrightness);for(uint16_t i=0;i<cloneLeftCount;i++){uint16_t idx=cloneLeftRev?(cloneLeftStart+cloneLeftCount-1-i):(cloneLeftStart+i);if(idx<LED_COUNT&&!written[idx])leds[idx]=l;}for(uint16_t i=0;i<cloneRightCount;i++){uint16_t idx=cloneRightRev?(cloneRightStart+cloneRightCount-1-i):(cloneRightStart+i);if(idx<LED_COUNT&&!written[idx])leds[idx]=r;}}
+}
+
+// [FIX] Effektív fBényerő: globális × (opcionális) TV-master × (opcionális) dinamikus.
+// Korábban a dyn_* és a tv master brightness holt beállítások voltak — most élnek.
+uint8_t effectiveBrightness(){
+  int br=globalBrightness;
+  if(tvMasterBrightnessEnabled && tvMasterBrightnessAvailable){
+    br=(br*(int)tvMasterBrightness)/255;
+  }
+  if(dynBrightEnabled){
+    uint8_t lum=sceneLuminance();                       // 0..255 jelenet-fényesség
+    int dyn=dynBrightMin + ((int)(dynBrightMax-dynBrightMin)*lum)/255;
+    // dynBrightResp: 0 = statikus (globális), 255 = teljesen jelenetkövető
+    br=(br*(255-dynBrightResp) + dyn*dynBrightResp)/255;
+  }
+  return (uint8_t)constrain(br,0,255);
 }
 
 void showLeds(){
@@ -1887,9 +2077,8 @@ void showLeds(){
     if(millis()<ledTestUntil){ fill_solid(leds,LED_COUNT,ledTestColor); FastLED.setBrightness(255); FastLED.show(); return; }
     ledTestActive=false;
   }
-  uint8_t br=globalBrightness;
   if(tvOutputOff){ FastLED.clear(); FastLED.show(); return; }
-  FastLED.setBrightness(br);
+  FastLED.setBrightness(effectiveBrightness());
   FastLED.show();
 }
 
@@ -1898,11 +2087,34 @@ void showLeds(){
 // [E4] pontos 0..359 → 0..255 húe-átváltás: *256u/360u (nem *255/359)
 static inline uint8_t hue360To8(uint16_t h){ return (uint8_t)(((uint32_t)h*256u)/360u); }
 
+// [PERF] Az ESP32-C3 (RISC-V) NEM rendelkezik hardveres FPU-val, ezért a mood-motor
+// teljesen fixpontos / egész számos FastLED-primitívekre (sin8, beat8, beatsin8,
+// scale8, qadd8) épül — nincs többé lebegőpontos sin/fabs/fmod LED-enként.
 static CRGB moodColor(const MoodConfig& m,uint16_t i,uint16_t count,uint8_t sideOffset=0){
-  uint32_t now=millis(); uint8_t fx=m.effect; uint8_t h=hue360To8(m.hue); float p=count>1?(float)i/(count-1):0.0f;
+  uint32_t now=millis(); uint8_t fx=m.effect; uint8_t h=hue360To8(m.hue);
+  uint8_t p8 = (count>1) ? (uint8_t)(((uint32_t)i*255u)/(count-1)) : 0;   // pozíció 0..255
   uint8_t phase=(uint8_t)((now*(uint32_t)(m.speed+1)/30u)+sideOffset+i*(m.motion+1));
   uint8_t v=m.brightness;
-  switch(fx){case MOOD_BREATHE:v=(uint8_t)(m.brightness*(0.45f+0.55f*(0.5f+0.5f*sin(now/500.0f))));break;case MOOD_RAINBOW:h+=phase;break;case MOOD_SLOW_COLOR:h+=phase/8;break;case MOOD_WARM:h=18;v=min<uint8_t>(255,m.brightness);break;case MOOD_COLOR_WAVE:h+=(uint8_t)(p*96)+phase;break;case MOOD_COMET:h+=phase;v=(uint8_t)(m.brightness*(0.25f+0.75f*fmax(0.0f,1.0f-fabs(p-fmod(now/1200.0f,1.0f))*4.0f)));break;case MOOD_TWINKLE: v=(uint8_t)(m.brightness*((((i*37u+phase*13u)%100)<(20+m.density))?1.0f:0.2f));break;case MOOD_PULSE:v=(uint8_t)(m.brightness*(0.2f+0.8f*(0.5f+0.5f*sin(now/180.0f))));break;case MOOD_METEOR:h+=phase;break;case MOOD_CYBER:h=(uint8_t)(p*40)+phase;break;case MOOD_SPECTRAL:h=(uint8_t)(p*255)+phase;break;default:break;}
+  switch(fx){
+    case MOOD_BREATHE:  v=beatsin8(19, scale8(m.brightness,115), m.brightness); break;   // ~3.1s ciklus
+    case MOOD_RAINBOW:  h+=phase; break;
+    case MOOD_SLOW_COLOR: h+=phase/8; break;
+    case MOOD_WARM:     h=18; v=m.brightness; break;
+    case MOOD_COLOR_WAVE: h+=scale8(p8,96)+phase; break;
+    case MOOD_COMET: {
+      h+=phase;
+      uint8_t head=beat8(50);                      // 0..255 fűrészjel ~1.2s
+      uint8_t dist=(head>=p8)?(head-p8):(p8-head);
+      uint8_t env=(dist>=64)?0:(uint8_t)(255-dist*4);
+      v=qadd8(scale8(m.brightness,64), scale8(m.brightness, scale8(env,191)));
+    } break;
+    case MOOD_TWINKLE: { uint8_t level=((((i*37u+phase*13u)%100u)<(20u+m.density))?255u:51u); v=scale8(m.brightness,level); } break;
+    case MOOD_PULSE:    v=beatsin8(53, scale8(m.brightness,51), m.brightness); break;    // ~1.1s ciklus
+    case MOOD_METEOR:   h+=phase; break;
+    case MOOD_CYBER:    h=scale8(p8,40)+phase; break;
+    case MOOD_SPECTRAL: h=p8+phase; break;
+    default: break;
+  }
   CHSV hsv(h,m.saturation,v); CRGB c; hsv2rgb_rainbow(hsv,c); return c;
 }
 void renderMoodSide(const MoodConfig& m,uint16_t start,uint16_t count,bool rev,uint8_t sideOffset=0){
@@ -1917,17 +2129,21 @@ void renderMood(){MoodConfig L=leftMood,R=rightMood;bool revR=false;uint8_t offR
 
 /* ===== PERSISTENCE (NVS) =============================================== */
 
-#define CFG_VERSION 8
-
 void setDefaultMapping(){
   segmentCount=4; uint16_t per=LED_COUNT/4; const uint8_t src[4]={SRC_L0,SRC_L1,SRC_R0,SRC_R1};
   for(uint8_t i=0;i<4;i++){segments[i].start=i*per;segments[i].count=per;segments[i].source=src[i];segments[i].brightness=255;segments[i].reverse=false;}
 }
-static void remapFx(uint8_t a,uint8_t b){leftMood.effect=(uint8_t)constrain(a,0,(int)MOOD_EFFECT_MAX);rightMood.effect=(uint8_t)constrain(b,0,(int)MOOD_EFFECT_MAX);}
 
 void saveConfig(){
-  prefs.begin("cfg",false); prefs.putUChar("cfg_ver",CFG_VERSION); prefs.putUChar("bright",globalBrightness); prefs.putUChar("smooth",smoothing); prefs.putUChar("black",blackThreshold);
-  prefs.putString("tvip",tvIP.toString()); prefs.putString("webpw",webAuthPassword); prefs.putUChar("lm_eff",leftMood.effect);prefs.putUChar("rm_eff",rightMood.effect);prefs.putUShort("lm_hue",leftMood.hue);prefs.putUShort("rm_hue",rightMood.hue);
+  prefs.begin("cfg",false); prefs.putUChar("cfg_ver",CONFIG_SCHEMA_VERSION); prefs.putUChar("bright",globalBrightness); prefs.putUChar("smooth",smoothing); prefs.putUChar("black",blackThreshold);
+  prefs.putString("tvip",tvIP.toString());
+  // Webes jelszó: csak sózott hash kerül NVS-be (a régi nyílt "webpw" kulcsot töröljük).
+  prefs.remove("webpw");
+  prefs.putBool("webauth",webAuthConfigured);
+  prefs.putBool("webopt",webAuthOptOut);
+  if(webAuthConfigured){ prefs.putBytes("webslt",webAuthSalt,16); prefs.putBytes("webhsh",webAuthHash,32); }
+  else { prefs.remove("webslt"); prefs.remove("webhsh"); }
+  prefs.putUChar("lm_eff",leftMood.effect);prefs.putUChar("rm_eff",rightMood.effect);prefs.putUShort("lm_hue",leftMood.hue);prefs.putUShort("rm_hue",rightMood.hue);
   prefs.putBool("lm_mode",leftMood.mode!=0); prefs.putBool("rm_mode",rightMood.mode!=0);
   prefs.putUChar("lm_sat",leftMood.saturation);prefs.putUChar("rm_sat",rightMood.saturation);prefs.putUChar("lm_val",leftMood.brightness);prefs.putUChar("rm_val",rightMood.brightness);
   prefs.putUChar("lm_sp",leftMood.speed);prefs.putUChar("rm_sp",rightMood.speed);
@@ -1940,7 +2156,6 @@ void saveConfig(){
   prefs.putUChar("lm_cm",leftMood.colorMode);prefs.putUChar("rm_cm",rightMood.colorMode);
   prefs.putBool("lm_auto",leftMood.autoColor);prefs.putBool("rm_auto",rightMood.autoColor);
   prefs.putBool("lm_rev",leftMood.reverse);prefs.putBool("rm_rev",rightMood.reverse);
-  prefs.putUChar("lm_eff",leftMood.effect);prefs.putUChar("rm_eff",rightMood.effect);prefs.putUShort("lm_hue",leftMood.hue);prefs.putUShort("rm_hue",rightMood.hue);
   prefs.putUChar("linkmode",(uint8_t)moodLinkMode);
   prefs.putBool("dyn_en",dynBrightEnabled);prefs.putUChar("dyn_min",dynBrightMin);prefs.putUChar("dyn_max",dynBrightMax);prefs.putUChar("dyn_resp",dynBrightResp);
   prefs.putBool("mood_dyn",moodDynEnabled);prefs.putUChar("mood_dep",moodDynDepth);
@@ -1951,11 +2166,23 @@ void saveConfig(){
 
 void loadConfig(){
   prefs.begin("cfg",true); bool fresh=!prefs.isKey("cfg_ver"); uint8_t stored=prefs.getUChar("cfg_ver",0);
+  tvIP=DEFAULT_TV_IP;
   globalBrightness=prefs.getUChar("bright",DEFAULT_BRIGHTNESS); smoothing=prefs.getUChar("smooth",DEFAULT_SMOOTHING); blackThreshold=prefs.getUChar("black",DEFAULT_BLACK_THRESHOLD);
   String tvs=prefs.getString("tvip",""); IPAddress ip; if(tvs.length()&&ip.fromString(tvs))tvIP=ip;
-  String pw=prefs.getString("webpw",""); if(pw.length())strncpy(webAuthPassword,pw.c_str(),sizeof(webAuthPassword)-1);
+  // Webes jelszó betöltése: elsődlegesen sózott hash (webslt/webhsh).
+  webAuthConfigured=prefs.getBool("webauth",false);
+  webAuthOptOut=prefs.getBool("webopt",false);
+  if(webAuthConfigured){
+    if(prefs.getBytes("webslt",webAuthSalt,16)!=16 || prefs.getBytes("webhsh",webAuthHash,32)!=32) webAuthConfigured=false;
+  }
+  // Migráció: ha még régi nyílt "webpw" van tárolva, hash-eljük és tovább viszük.
+  bool legacyAuthMigrated=false;
+  if(!webAuthConfigured){
+    String legacy=prefs.getString("webpw","");
+    if(legacy.length()){ setWebAuthPassword(legacy.c_str()); legacyAuthMigrated=true; }
+  }
 #ifdef SECRET_WEB_AUTH
-  else if(strlen(SECRET_WEB_AUTH)>0)strncpy(webAuthPassword,SECRET_WEB_AUTH,sizeof(webAuthPassword)-1);
+  if(!webAuthConfigured && strlen(SECRET_WEB_AUTH)>0) setWebAuthPassword(SECRET_WEB_AUTH);
 #endif
 #ifdef SECRET_TV_IP
   if(tvIP==IPAddress(0,0,0,0))tvIP=IPAddress(SECRET_TV_IP);
@@ -1974,10 +2201,28 @@ void loadConfig(){
   tvMasterSyncEnabled=prefs.getBool("tv_sync",true);tvMasterBrightnessEnabled=prefs.getBool("tv_bsync",true);
   sideCloneEnabled=prefs.getBool("clone_en",true);sideCloneBrightness=prefs.getUChar("clone_br",255);cloneLeftStart=prefs.getUShort("cl_st",30);cloneLeftCount=prefs.getUShort("cl_ct",30);cloneRightStart=prefs.getUShort("cr_st",90);cloneRightCount=prefs.getUShort("cr_ct",30);cloneLeftRev=prefs.getBool("cl_rev",false);cloneRightRev=prefs.getBool("cr_rev",false);
   prefs.end();
-  if(!mapperValid(segments[0])){}
-  if(!fresh && stored>0 && stored<CFG_VERSION){ uint8_t le=leftMood.effect,re=rightMood.effect; remapFx(le,re); Serial.printf("[CFG] migrálva v%u -> v%u\n",stored,CFG_VERSION); }
-  loadMapper(true); if(fresh){saveConfig();Serial.println("[CFG] friss telepítés — alapértelmezett konfig");}
-  else { if(segmentCount==0){setDefaultMapping();saveMapper();} }
+  if(legacyAuthMigrated){
+    prefs.begin("cfg",false);
+    prefs.remove("webpw");
+    prefs.end();
+    Serial.println("[AUTH] legacy plaintext password migrated and removed");
+  }
+  // [FIX] A mappert a séma-migráció ELŐTT kell betölteni! A migrációs saveConfig()
+  //       a végén saveMapper()-t is hív, így ha a szegmensek még nincsenek
+  //       memóriában (boot után nullázva), a tárolt LED-mapping felülíródna.
+  //       A config és a mapper külön NVS-kulcsokon van, de a saveConfig()->saveMapper()
+  //       lánc miatt EGYÜTT migrálódnak → EGYÜTT is kell tesztelni (Regression Guard).
+  loadMapper(true);
+  if(fresh){
+    saveConfig();
+    Serial.println("[CFG] friss telepítés — alapértelmezett konfig");
+  } else {
+    if(segmentCount==0){ setDefaultMapping(); saveMapper(); }
+    if(stored>0 && stored<CONFIG_SCHEMA_VERSION){
+      Serial.printf("[CFG] konfig séma frissítve v%u -> v%u\n",stored,CONFIG_SCHEMA_VERSION);
+      saveConfig();   // most már a helyesen betöltött mappert menti tovább
+    }
+  }
 }
 
 bool detectTVTopology(){
@@ -2006,6 +2251,17 @@ void setup(){
   lastSuccessfulPoll=0;
   tvOnline=false;
   smartLastFrameMs=millis();
+
+  // [WDT] Task watchdog a loop()-ra: ha egy iteráció beragad (pl. hálózati
+  // blokkolás), a chip újraindul. Az API core-verziónként eltér, ezért guardolt.
+#if ESP_IDF_VERSION_MAJOR >= 5
+  esp_task_wdt_config_t twdt_cfg = { .timeout_ms = WDT_TIMEOUT_MS, .idle_core_mask = 0, .trigger_panic = true };
+  esp_task_wdt_reconfigure(&twdt_cfg);   // IDF5-ben a WDT-t a core már inicializálta
+#else
+  esp_task_wdt_init(WDT_TIMEOUT_MS/1000, true);
+#endif
+  esp_task_wdt_add(NULL);                 // a jelenlegi (loop) taszk feliratkoztatása
+
   Serial.println("[SETUP] kész");
 }
 
@@ -2043,31 +2299,42 @@ void loop(){
     handleTVWatchdog();
   }
 
-  // Ambilight keret lekérése + LED render
-  if(!provisioningMode && WiFi.isConnected() && tvIP!=IPAddress(0,0,0,0) && !otaInProgress){
-    if(now-lastFrameStart>=TV_FRAME_INTERVAL_MS){
-      lastFrameStart=now;
-      bool got=readAmbilight();
-      if(!got) tvConsecutiveFailures++;
-      // [E5] a keretszámlálót a broadcast ELŐTT növeljük, hogy a WS üzenet
-      //      és a kliensklónok konzisztens seq-et lássanak
-      smartFrameSeq++;
+  // ===== TV vs Mood LED-frissítés – kölcsönösen kizárólagos, csak egyszer/show() =====
+  // FONTOS: az ambilight-keret lekérése (readAmbilight) az, ami detektálja a TV-t
+  // (frissíti lastSuccessfulPoll-t → a watchdog ebből állítja tvOnline-t), ezért a
+  // lekérést MINDIG futtatjuk, ha kapcsolódtunk – függetlenül a tvOnline-tól.
+  // Csak a LED render+show() kölcsönösen kizárólagos a mood-dal.
+  bool tvFetchAllowed = !provisioningMode && WiFi.isConnected()
+                        && tvIP!=IPAddress(0,0,0,0) && !otaInProgress;
+
+  if(tvFetchAllowed && now-lastFrameStart>=TV_FRAME_INTERVAL_MS){
+    lastFrameStart=now;
+    bool got=readAmbilight();
+    if(!got) tvConsecutiveFailures++;
+    // [E5] a keretszámlálót a broadcast ELŐTT növeljük, hogy a WS üzenet
+    //      és a kliensklónok konzisztens seq-et lássanak
+    smartFrameSeq++;
+    // Csak akkor renderelünk+mutatunk TV-ből, ha tényleg aktív a jel.
+    if(tvOnline && !tvOutputOff){
       renderZonesToLeds();
       showLeds();
-      broadcastRealtime();
-      smartLastFrameMs=now;
     }
+    broadcastRealtime();
+    smartLastFrameMs=now;
   }
 
-  // Mood keret (ha nincs aktív TV-jel)
-  if(!provisioningMode && (!tvOnline || tvOutputOff) && !ledTestActive && !otaInProgress){
-    if(now-lastMoodFrame>=MOOD_FRAME_INTERVAL_MS){
-      lastMoodFrame=now;
-      renderMood();
-      FastLED.setBrightness(globalBrightness);
-      FastLED.show();
-    }
+  // Mood keret: csak ha nincs aktív TV-jel (kölcsönösen kizárólagos a fentivel)
+  bool moodActive = !provisioningMode && (!tvOnline || tvOutputOff)
+                    && !ledTestActive && !otaInProgress;
+  if(moodActive && now-lastMoodFrame>=MOOD_FRAME_INTERVAL_MS){
+    lastMoodFrame=now;
+    renderMood();
+    FastLED.setBrightness(globalBrightness);
+    FastLED.show();
   }
+
+  // [WDT] watchdog karbantartás – ha a loop() beragad, a chip újraindul
+  esp_task_wdt_reset();
 
   yield();
 }
