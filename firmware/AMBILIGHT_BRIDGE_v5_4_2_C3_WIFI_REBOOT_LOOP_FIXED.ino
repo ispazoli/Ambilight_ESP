@@ -651,7 +651,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--cyan);cursor:poin
 /* ═══════════════════════════════════════════════════════════════════════════
    SECTION 1 — UTILITIES & SMART ENGINE MODULES
    ═══════════════════════════════════════════════════════════════════════ */
-const $=id=>document.getElementById(id),$=(s,p)=>[...(p||document).querySelectorAll(s)];
+const $=id=>document.getElementById(id),$$=(s,p)=>[...(p||document).querySelectorAll(s)];
 const clamp=(v,lo=0,hi=255)=>Math.max(lo,Math.min(hi,Number(v)||0));
 const clamp01=v=>Math.max(0,Math.min(1,Number(v)||0));
 const ZN=["L0","L1","R0","R1"];
@@ -765,6 +765,7 @@ class SmartEngine{
 let espIP=localStorage.getItem("ab_ip")||"",auth=localStorage.getItem("ab_auth")||"";
 let espHost="",espPort=8080,wsPort=81,ws=null,wsTO=null,config=null,fps_f=0,fps_t=performance.now(),fps_v=0;
 let securePage=location.protocol==="https:";
+let localESPPage=location.protocol==="http:" && (location.port==="8080" || location.hostname==="ambilight.local");
 function normalizeESP(v){
   v=(v||"").trim();
   if(!v)return {host:"ambilight.local",port:8080};
@@ -778,8 +779,14 @@ function setESPAddress(v){
   const n=normalizeESP(v); espHost=n.host; espPort=n.port; espIP=espHost+(espPort!==8080?":"+espPort:"");
   localStorage.setItem("ab_ip",espIP);
 }
-function apiUrl(p){return espHost?"http://"+espHost+":"+espPort+p:null}
-function wsUrl(){return espHost?"ws://"+espHost+":"+wsPort:null}let pipeline=new TVFramePipeline({smoothing:.25,deadband:1,maxDelta:48,blackThreshold:4,staleTimeoutMs:1000});
+function apiUrl(p){
+  if(localESPPage)return p;
+  return espHost?"http://"+espHost+":"+espPort+p:null;
+}
+function wsUrl(){
+  if(localESPPage)return "ws://"+location.hostname+":"+wsPort;
+  return espHost?"ws://"+espHost+":"+wsPort:null;
+}let pipeline=new TVFramePipeline({smoothing:.25,deadband:1,maxDelta:48,blackThreshold:4,staleTimeoutMs:1000});
 let engine=new SmartEngine({mode:"SMART PRO",brightnessMin:10,brightnessMax:100,speedMin:10,speedMax:90,reactionMin:10,reactionMax:90,response:35});
 engine.start();
 engine.on("update",r=>{
@@ -834,10 +841,17 @@ function updateConn(on){
   else{td.classList.remove("on");ed.classList.remove("on");$("tvLabel").textContent="TV —";$("espLabel").textContent="ESP —"}
 }
 async function doConnect(){
-  const raw=$("modalIP").value.trim()||"ambilight.local",pw=$("modalAuth").value;
-  if(securePage){
+  const raw=$("modalIP").value.trim()||(localESPPage?location.hostname:"ambilight.local"),pw=$("modalAuth").value;
+  if(securePage && !localESPPage){
     toast("GitHub Pages HTTPS: az ESP32 HTTP API közvetlenül blokkolható. Nyisd meg ezt a vezérlőt az ESP32-ről: http://ESP:8080",1);
     return;
+  }
+  if(localESPPage){
+    espHost=location.hostname;
+    espPort=Number(location.port)||8080;
+    espIP=espHost+(espPort!==8080?":"+espPort:"");
+  } else {
+    try{setESPAddress(raw)}catch(e){toast(e.message,1);return}
   }
   try{setESPAddress(raw)}catch(e){toast(e.message,1);return}
   if(pw){auth="Basic "+btoa("admin:"+pw);localStorage.setItem("ab_auth",auth)}
@@ -1067,10 +1081,19 @@ function collectCfg(){
 /* ── Actions ────────────────────────────────────────────────────── */
 async function saveConfig(){
   try{
-    const cfg=collectCfg();    await apiFormPost("/api/config",{brightness:cfg.brightness,smoothing:cfg.smoothing,blackThreshold:cfg.black_threshold});
+    const cfg=collectCfg();    await apiFormPost("/api/config",{brightness:cfg.brightness,smoothing:cfg.smoothing,blackThreshold:cfg.black_threshold,
+      dyn_on:cfg.dyn_on?1:0,dyn_min:cfg.dyn_min,dyn_max:cfg.dyn_max,dyn_resp:cfg.dyn_resp,
+      mood_dyn:cfg.mood_dyn?1:0,mood_dep:cfg.mood_dep,tv_sync:cfg.tv_sync?1:0,tv_bsync:cfg.tv_bsync?1:0});
     if($("cfgTvIP").value) await apiFormPost("/api/tv",{ip:$("cfgTvIP").value});
     await apiPost("/api/mapper",{segments:cfg.segments});
-    await apiFormPost("/api/mood",{leftMode:cfg.left.effect,rightMode:cfg.right.effect,leftHue:cfg.left.hue,rightHue:cfg.right.hue,leftSat:cfg.left.sat,rightSat:cfg.right.sat,leftVal:cfg.left.bri,rightVal:cfg.right.bri,linkMode:cfg.mood_link});
+    const moodArgs=(side)=>({
+      [side+"Mode"]:cfg[side].mode?1:0,[side+"Effect"]:cfg[side].effect,[side+"Hue"]:cfg[side].hue,
+      [side+"Sat"]:cfg[side].sat,[side+"Val"]:cfg[side].bri,[side+"Speed"]:cfg[side].speed,
+      [side+"Palette"]:cfg[side].pal,[side+"Scale"]:cfg[side].scale,[side+"Motion"]:cfg[side].motion,
+      [side+"Glow"]:cfg[side].glow,[side+"Density"]:cfg[side].den,[side+"Turbulence"]:cfg[side].turb,
+      [side+"ColorMode"]:cfg[side].cm,[side+"Auto"]:cfg[side].auto?1:0,[side+"Reverse"]:cfg[side].rev?1:0
+    });
+    await apiFormPost("/api/mood",{...moodArgs("left"),...moodArgs("right"),linkMode:cfg.mood_link});
     await apiFormPost("/api/sideclone",{enabled:cfg.clone_on?1:0,brightness:cfg.clone_bri,leftStart:cfg.clone_l_start,leftCount:cfg.clone_l_count,rightStart:cfg.clone_r_start,rightCount:cfg.clone_r_count,leftReverse:cfg.clone_l_rev?1:0,rightReverse:cfg.clone_r_rev?1:0});
     toast("Beállítások elmentve ✓");setTimeout(loadAll,300);
   }catch(e){toast("Mentési hiba: "+e.message,1)}
@@ -1125,9 +1148,9 @@ async function uploadOTA(){
 }
 
 /* ── Tabs ───────────────────────────────────────────────────────── */
-$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
-  $(".navBtn").forEach(x=>x.classList.remove("active"));b.classList.add("active");
-  $(".page").forEach(x=>x.classList.remove("active"));$("page-"+b.dataset.page).classList.add("active");
+$$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
+  $$(".navBtn").forEach(x=>x.classList.remove("active"));b.classList.add("active");
+  $$(".page").forEach(x=>x.classList.remove("active"));$("page-"+b.dataset.page).classList.add("active");
   if(b.dataset.page==="mapper")updateMapperPreview();
 }));
 
@@ -1137,7 +1160,14 @@ $(".navBtn").forEach(b=>b.addEventListener("click",()=>{
 
 /* ── Init ───────────────────────────────────────────────────────── */
 $("moodLeftForm").innerHTML=moodForm("left");$("moodRightForm").innerHTML=moodForm("right");renderSegs([]);renderScene({brightness:0,saturation:0,motion:0,energy:0,dominantColor:{r:0,g:0,b:0},dominantHue:0,warmCool:0,zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});renderAdaptive({brightness:50,speed:50,reaction:50,sceneType:"NORMAL"});renderZoneAnalysis({zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});
-if(espIP && !securePage){try{setESPAddress(espIP);loadAll()}catch(e){$("connectModal").style.display="flex"}}else $("connectModal").style.display="flex";
+if(localESPPage){
+  espHost=location.hostname; espPort=Number(location.port)||8080;
+  espIP=espHost+(espPort!==8080?":"+espPort:"");
+  $("connectModal").style.display="none";
+  loadAll();
+}else if(espIP && !securePage){
+  try{setESPAddress(espIP);loadAll()}catch(e){$("connectModal").style.display="flex"}
+}else $("connectModal").style.display="flex";
 if(securePage){$("modalIP").value=localStorage.getItem("ab_ip")||"192.168.1.228";}
 setInterval(async()=>{if(!espHost||securePage)return;try{const s=await apiGet("/api/state");config={...config,...normalizeState(s)};updateConn(true);renderStats(config);renderDiag(config)}catch(e){updateConn(false)}},8000);
 console.log("🚀 Ambilight Bridge v5.0 · Full Smart Engine · Ready");
