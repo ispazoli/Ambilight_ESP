@@ -205,6 +205,7 @@ WebSocketsServer   wsServer(81);
 Preferences        prefs;
 
 IPAddress          tvIP = DEFAULT_TV_IP;
+String             tvAmbilightMode = "—";
 ZoneRGB            targetZones[4], currentZones[4];
 WiFiClient         tvClient;
 bool               tvOnline, tvOutputOff=false;
@@ -506,6 +507,8 @@ void apiState(){
   JsonDocument d;
   d["fw"]=FIRMWARE_VERSION; d["firmware"]=FIRMWARE_VERSION; d["contract"]=FW_CONTRACT_VERSION;
   d["tvOnline"]=tvOnline; d["tv_online"]=tvOnline; d["tvIP"]=tvIP.toString();
+  d["tvAmbilightMode"]=tvAmbilightMode;
+  d["tv_ambilight_mode"]=tvAmbilightMode;
   d["wifi"]=WiFi.isConnected(); d["rssi"]=WiFi.isConnected()?WiFi.RSSI():-127;
   d["ip"]=WiFi.localIP().toString(); d["ap_active"]=provisioningMode;
   d["ap_ip"]=provisioningMode?WiFi.softAPIP().toString():"";
@@ -1155,14 +1158,50 @@ void pollTVMaster(){
     if(!deserializeJson(d,tvJsonBuf)){
       const char* pw=d["powerstate"]|"";
       tvOutputOff = (strcmp(pw,"On")!=0);
-      // A TV elérhető → a master-fényerő szinkron alkalmazható (lásd effectiveBrightness).
-      // Best-effort: ha a TV küld brightness értéket, azt átvesszük; különben
-      // a beállított tvMasterBrightness marad (alapért. 255 = nincs változtatás).
+
       if(d["brightness"].is<int>()){
         int b=d["brightness"].as<int>();
         tvMasterBrightness=(uint8_t)constrain(b,0,255);
       }
       tvMasterBrightnessAvailable = tvMasterBrightnessEnabled;
+
+      // Philips JointSPACE: /ambilight/currentconfiguration
+      if(tvOutputOff){
+        tvAmbilightMode="Ki";
+      }else{
+        int cn=tvGet("/1/ambilight/currentconfiguration",tvJsonBuf,sizeof(tvJsonBuf));
+        if(cn>0){
+          JsonDocument a;
+          if(!deserializeJson(a,tvJsonBuf)){
+            const char* style=a["styleName"]|"";
+            const char* setting=a["menuSetting"]|"";
+
+            if(strcmp(style,"OFF")==0){
+              tvAmbilightMode="Ki";
+            }else if(strcmp(setting,"STANDARD")==0){
+              tvAmbilightMode="Normál";
+            }else if(strcmp(setting,"NATURAL")==0){
+              tvAmbilightMode="Természetes";
+            }else if(strcmp(setting,"VIVID")==0){
+              tvAmbilightMode="Élénk";
+            }else if(strcmp(setting,"COMFORT")==0){
+              tvAmbilightMode="Kényelem";
+            }else if(strcmp(setting,"RELAX")==0){
+              tvAmbilightMode="Nyugodt";
+            }else if(strcmp(setting,"GAME")==0){
+              tvAmbilightMode="Játék";
+            }else if(strcmp(setting,"STATIC")==0 || strcmp(setting,"MANUAL")==0 ||
+                     strcmp(style,"FOLLOW_COLOR")==0 || strcmp(style,"MANUAL")==0){
+              tvAmbilightMode="Statikus";
+            }else if(strcmp(style,"FOLLOW_VIDEO")==0){
+              tvAmbilightMode=String(setting);
+            }else{
+              tvAmbilightMode=String(setting[0]?setting:style);
+              if(tvAmbilightMode.length()==0) tvAmbilightMode="Ismeretlen";
+            }
+          }
+        }
+      }
     }
   } else {
     tvMasterBrightnessAvailable = false;
