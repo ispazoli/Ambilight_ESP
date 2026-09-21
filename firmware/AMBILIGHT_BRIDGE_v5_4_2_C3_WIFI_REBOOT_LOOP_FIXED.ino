@@ -835,10 +835,16 @@ async function pollRealtime(){
 }
 
 /* ── Connect ────────────────────────────────────────────────────── */
-function updateConn(on){
+function updateConn(on,tvOnline){
   const td=$("tvDot"),ed=$("espDot");
-  if(on){td.classList.add("on");ed.classList.add("on");$("tvLabel").textContent="TV ONLINE";$("espLabel").textContent="ESP ONLINE"}
-  else{td.classList.remove("on");ed.classList.remove("on");$("tvLabel").textContent="TV —";$("espLabel").textContent="ESP —"}
+  const tv=!!tvOnline;
+  if(on){
+    ed.classList.add("on");$("espLabel").textContent="ESP ONLINE";
+    td.classList.toggle("on",tv);$("tvLabel").textContent=tv?"TV ONLINE":"TV —";
+  }else{
+    ed.classList.remove("on");td.classList.remove("on");
+    $("tvLabel").textContent="TV —";$("espLabel").textContent="ESP —";
+  }
 }
 async function doConnect(){
   const raw=$("modalIP").value.trim()||(localESPPage?location.hostname:"ambilight.local"),pw=$("modalAuth").value;
@@ -859,13 +865,13 @@ async function doConnect(){
     const cap=await apiGet("/api/capabilities");
     const s=await apiGet("/api/state");
     config={...cap,...normalizeState(s)};
-    $("connectModal").style.display="none";updateConn(true);startWS();startPoll();applyConfig(s);
+    $("connectModal").style.display="none";applyConfig(s);updateConn(true,config.tv_online);startWS();startPoll();
   }catch(e){updateConn(false);toast("ESP kapcsolat hiba: "+e.message,1)}
 }
 async function loadAll(){
   try{
     const s=await apiGet("/api/state");config=normalizeState(s);
-    applyConfig(s);$("connectModal").style.display="none";updateConn(true);
+    applyConfig(s);$("connectModal").style.display="none";updateConn(true,config.tv_online);
     if(!ws)startWS();startPoll();
   }catch(e){$("connectModal").style.display="flex";updateConn(false)}
 }
@@ -1169,7 +1175,7 @@ if(localESPPage){
   try{setESPAddress(espIP);loadAll()}catch(e){$("connectModal").style.display="flex"}
 }else $("connectModal").style.display="flex";
 if(securePage){$("modalIP").value=localStorage.getItem("ab_ip")||"192.168.1.228";}
-setInterval(async()=>{if(!espHost||securePage)return;try{const s=await apiGet("/api/state");config={...config,...normalizeState(s)};updateConn(true);renderStats(config);renderDiag(config)}catch(e){updateConn(false)}},8000);
+setInterval(async()=>{if(!espHost||securePage)return;try{const s=await apiGet("/api/state");config={...config,...normalizeState(s)};updateConn(true,config.tv_online);renderStats(config);renderDiag(config)}catch(e){updateConn(false)}},8000);
 console.log("🚀 Ambilight Bridge v5.0 · Full Smart Engine · Ready");
 </script>
 </body>
