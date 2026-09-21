@@ -131,7 +131,13 @@ IPAddress DEFAULT_TV_IP(192, 168, 1, 100);
 #define TV_BODY_READ_TIMEOUT_MS 350
 #define DEFAULT_SMOOTHING       70
 #define DEFAULT_BLACK_THRESHOLD 4
-#define MAX_SEGMENTS            12
+
+// Fixed physical LED topology: 4 sides × 3 segments × 10 LEDs = 120 LEDs.
+// The browser may change source/brightness/reverse, but LED addressing is firmware-owned.
+#define MAPPER_SIDE_COUNT        4
+#define MAPPER_SEGMENTS_PER_SIDE 3
+#define MAPPER_LEDS_PER_SEGMENT  10
+#define MAX_SEGMENTS              (MAPPER_SIDE_COUNT * MAPPER_SEGMENTS_PER_SIDE)
 
 /* ===== TYPE DEFINITIONS ================================================== */
 
@@ -559,6 +565,17 @@ static bool mapperValid(const LedSegment& sg){
   if(sg.source>=SOURCE_COUNT) return false;
   return true;
 }
+
+static uint16_t fixedSegmentStart(uint8_t index){
+  return (uint16_t)index * MAPPER_LEDS_PER_SEGMENT;
+}
+
+static bool fixedMapperSegment(uint8_t index,const LedSegment& sg){
+  return index < MAX_SEGMENTS &&
+         sg.start == fixedSegmentStart(index) &&
+         sg.count == MAPPER_LEDS_PER_SEGMENT &&
+         sg.source < SOURCE_COUNT;
+}
 void saveMapper(){
   prefs.begin("cfg",false); prefs.putUChar("segcnt",segmentCount);
   for(uint8_t i=0;i<MAX_SEGMENTS;i++){ char k[8];
@@ -576,12 +593,13 @@ bool detectTVTopology();
 
 void loadMapper(bool defaultsIfMissing){
   prefs.begin("cfg",true); bool has=prefs.isKey("segcnt"); uint8_t n=prefs.getUChar("segcnt",0);
-  if(has && n>0 && n<=MAX_SEGMENTS){ segmentCount=n; bool all=true; for(uint8_t i=0;i<n;i++){ char k[8];
+  if(has && n==MAX_SEGMENTS){ segmentCount=MAX_SEGMENTS; bool all=true; for(uint8_t i=0;i<MAX_SEGMENTS;i++){ char k[8];
       snprintf(k,sizeof(k),"s%ust",i); segments[i].start=prefs.getUShort(k,0);
       snprintf(k,sizeof(k),"s%uct",i); segments[i].count=prefs.getUShort(k,0);
       snprintf(k,sizeof(k),"s%usc",i); segments[i].source=prefs.getUChar(k,SRC_BLACK);
       snprintf(k,sizeof(k),"s%ub",i); segments[i].brightness=prefs.getUChar(k,255);
-      snprintf(k,sizeof(k),"s%ur",i); segments[i].reverse=prefs.getBool(k,false); if(!mapperValid(segments[i])) all=false;
+      snprintf(k,sizeof(k),"s%ur",i); segments[i].reverse=prefs.getBool(k,false);
+      if(!fixedMapperSegment(i,segments[i])) all=false;
     } prefs.end(); if(all) return;
   } else prefs.end();
   if(defaultsIfMissing){ setDefaultMapping(); saveMapper(); }
@@ -597,9 +615,18 @@ void apiMapper(){
   }
   String body=server.hasArg("plain")?server.arg("plain"):""; JsonDocument d; bool parsed=false; if(body.length()){ DeserializationError e=deserializeJson(d,body); parsed=!e; }
   if(body.length() && parsed && d["segments"].is<JsonArray>()){
-    JsonArray a=d["segments"].as<JsonArray>(); if(a.size()==0 || a.size()>MAX_SEGMENTS){server.send(400,"application/json","{\"ok\":false,\"err\":\"bad segment count\"}");return;}
-    LedSegment tmp[MAX_SEGMENTS]; bool ok=true; uint8_t i=0; for(JsonVariant v:a){tmp[i].start=v["start"]|0;tmp[i].count=v["count"]|0;tmp[i].source=v["source"]|0;tmp[i].brightness=v["brightness"]|255;tmp[i].reverse=v["reverse"]|false;if(!mapperValid(tmp[i]))ok=false;i++;}
-    if(!ok){server.send(400,"application/json","{\"ok\":false,\"err\":\"invalid segment\"}");return;} segmentCount=i; for(i=0;i<segmentCount;i++)segments[i]=tmp[i]; saveMapper(); server.send(200,"application/json","{\"ok\":true}"); return;
+    JsonArray a=d["segments"].as<JsonArray>(); if(a.size()!=MAX_SEGMENTS){server.send(400,"application/json","{\"ok\":false,\"err\":\"exactly 12 fixed segments required\"}");return;}
+    LedSegment tmp[MAX_SEGMENTS]; bool ok=true; uint8_t i=0; for(JsonVariant v:a){
+      tmp[i].start=fixedSegmentStart(i);
+      tmp[i].count=MAPPER_LEDS_PER_SEGMENT;
+      tmp[i].source=v["source"]|SRC_BLACK;
+      tmp[i].brightness=v["brightness"]|255;
+      tmp[i].reverse=v["reverse"]|false;
+      if(!fixedMapperSegment(i,tmp[i]))ok=false;
+      i++;
+    }
+    if(!ok){server.send(400,"application/json","{\"ok\":false,\"err\":\"invalid fixed mapper segment\"}");return;}
+    segmentCount=MAX_SEGMENTS; for(i=0;i<segmentCount;i++)segments[i]=tmp[i]; saveMapper(); server.send(200,"application/json","{\"ok\":true}"); return;
   }
   server.send(400,"application/json","{\"ok\":false,\"err\":\"expected JSON segments\"}");
 }
@@ -1244,8 +1271,19 @@ void renderMood(){MoodConfig L=leftMood,R=rightMood;bool revR=false;uint8_t offR
 /* ===== PERSISTENCE (NVS) =============================================== */
 
 void setDefaultMapping(){
-  segmentCount=4; uint16_t per=LED_COUNT/4; const uint8_t src[4]={SRC_L0,SRC_L1,SRC_R0,SRC_R1};
-  for(uint8_t i=0;i<4;i++){segments[i].start=i*per;segments[i].count=per;segments[i].source=src[i];segments[i].brightness=255;segments[i].reverse=false;}
+  // 12 fixed physical segments: 3 × 10 LEDs on each of the 4 sides.
+  // Side order and LED ranges:
+  //   BOTTOM  0..29   LEFT 30..59   TOP 60..89   RIGHT 90..119
+  const uint8_t src[MAPPER_SIDE_COUNT]={SRC_L0,SRC_L1,SRC_R0,SRC_R1};
+  segmentCount=MAX_SEGMENTS;
+  for(uint8_t i=0;i<MAX_SEGMENTS;i++){
+    uint8_t side=i/MAPPER_SEGMENTS_PER_SIDE;
+    segments[i].start=fixedSegmentStart(i);
+    segments[i].count=MAPPER_LEDS_PER_SEGMENT;
+    segments[i].source=src[side];
+    segments[i].brightness=255;
+    segments[i].reverse=false;
+  }
 }
 
 void saveConfig(bool includeMapper){
@@ -1328,7 +1366,7 @@ void loadConfig(){
     saveConfig(true);
     Serial.println("[CFG] friss telepítés — alapértelmezett konfig");
   } else {
-    if(segmentCount==0){ setDefaultMapping(); saveMapper(); }
+    if(segmentCount!=MAX_SEGMENTS){ setDefaultMapping(); saveMapper(); }
     if(stored>0 && stored<CONFIG_SCHEMA_VERSION){
       Serial.printf("[CFG] konfig séma frissítve v%u -> v%u\n",stored,CONFIG_SCHEMA_VERSION);
       saveConfig(true);   // séma-migrációkor a helyesen betöltött mappert is újramentjük
