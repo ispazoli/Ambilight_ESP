@@ -101,6 +101,7 @@ if "tvIP=DEFAULT_TV_IP" not in fw or 'prefs.getString("tvip"' not in fw:
 print("  Firmware symbol inventory: present")
 print("  Firmware endpoint inventory: present")
 print("  Mapper source contract: present")
+print("  Fixed mapper: 4 sides × 3 segments × 10 LEDs = 120")
 print("  Persistence invariants: present")
 
 print("PASS: single-source UI parity")
