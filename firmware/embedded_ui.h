@@ -1,3 +1,9 @@
+#pragma once
+#include <Arduino.h>
+
+// GENERATED FILE — DO NOT EDIT.
+// Source of truth: web/index.html
+static const char AMBILIGHT_CC_HTML[] PROGMEM = R"AMB_CC_HTML(
 
 <!DOCTYPE html>
 <html lang="hu">
@@ -980,3 +986,4 @@ setInterval(async()=>{if(!espHost||securePage)return;try{const s=await apiGet("/
 console.log("🚀 Ambilight Bridge v5.0 · Full Smart Engine · Ready");
 </script>
 </body>
+)AMB_CC_HTML";

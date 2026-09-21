@@ -1,0 +1,75 @@
+name: Firmware Build
+
+on:
+  push:
+    paths:
+      - "firmware/AMBILIGHT_BRIDGE_v5_5_1_C3_HARDENED.ino"
+      - "firmware/embedded_ui.h"
+      - "web/index.html"
+      - "tools/build_web_ui.py"
+      - "tools/browser_parity_guard.py"
+      - ".github/workflows/firmware-build.yml"
+  pull_request:
+    paths:
+      - "firmware/AMBILIGHT_BRIDGE_v5_5_1_C3_HARDENED.ino"
+      - "firmware/embedded_ui.h"
+      - "web/index.html"
+      - "tools/build_web_ui.py"
+      - "tools/browser_parity_guard.py"
+      - ".github/workflows/firmware-build.yml"
+
+jobs:
+  build-esp32c3:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Regenerate browser/firmware UI artifacts
+        run: python3 tools/build_web_ui.py
+
+      - name: Verify generated artifacts are committed
+        run: git diff --exit-code -- docs/index.html firmware/embedded_ui.h
+
+      - name: Run browser/firmware parity guard
+        run: python3 tools/browser_parity_guard.py
+
+      - name: Setup Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: Configure Arduino CLI
+        run: |
+          arduino-cli config init --overwrite
+          arduino-cli config set library.enable_unsafe_install true
+
+      - name: Install ESP32 Arduino core 3.3.10
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@3.3.10
+
+      - name: Install firmware libraries
+        run: |
+          arduino-cli lib update-index
+          arduino-cli lib install FastLED
+          arduino-cli lib install ArduinoJson
+          arduino-cli lib install WebSockets
+
+      - name: Prepare isolated sketch
+        run: |
+          rm -rf .ci-sketch
+          mkdir -p .ci-sketch
+          cp firmware/AMBILIGHT_BRIDGE_v5_5_1_C3_HARDENED.ino .ci-sketch/AmbilightBridge.ino
+          cp firmware/embedded_ui.h .ci-sketch/
+
+      - name: Compile ESP32-C3 firmware
+        run: |
+          arduino-cli compile \
+            --fqbn esp32:esp32:esp32c3 \
+            --warnings all \
+            --output-dir build/esp32c3 \
+            .ci-sketch
+
+      - name: Report firmware binary
+        run: |
+          ls -lh build/esp32c3
