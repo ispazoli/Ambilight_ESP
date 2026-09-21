@@ -99,7 +99,7 @@ anchor_i = fw.find(anchor)
 if anchor_i < 0 or "tvOutputOff=false;" not in fw[anchor_i:anchor_i+500]:
     fail("successful Ambilight frame does not release tvOutputOff gate")
 # The watchdog still owns the offline transition; TV frame success owns the online/output release.
-watchdog_i = fw.find("if(tooManyFails || stale){ tvOnline=false; Serial.println(\"[TV] offline\"); }")
+watchdog_i = fw.find("if(tooManyFails || stale){ tvOnline=false; tvOutputOff=true; Serial.println(\"[TV] offline\"); }")
 if watchdog_i < 0:
     fail("TV watchdog offline transition missing")
 # TV Master Sync + Side Clone render contract.
