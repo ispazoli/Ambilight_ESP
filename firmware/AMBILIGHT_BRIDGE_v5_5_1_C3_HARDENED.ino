@@ -531,12 +531,15 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--cyan);cursor:poin
 .segBlock{margin-bottom:10px}
 .segSide{font-size:10px;color:var(--cyan);font-weight:750;text-transform:uppercase;letter-spacing:1.2px;
   padding:6px 0 8px;border-bottom:1px solid var(--line);margin-bottom:8px}
-.segRow{display:grid;grid-template-columns:55px 50px 1fr 45px 40px;gap:5px;align-items:end;
+.segRow{display:grid;grid-template-columns:52px 45px minmax(0,1fr) 48px 34px;gap:5px;align-items:end;
   padding:7px 10px;border-radius:var(--r-sm);border:1px solid transparent;transition:all .2s}
 .segRow:hover{border-color:var(--line);background:rgba(16,28,48,.4)}
 .segRow label{font-size:8px;margin-bottom:1px}
-.segRow input,.segRow select{padding:5px 7px;font-size:11px}
+.segRow input,.segRow select{padding:5px 6px;font-size:11px;min-width:0;width:100%}
+.segRow select{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .segRow input[type=checkbox]{width:14px;height:14px;margin-bottom:5px}
+/* A forrásmező a hosszú GRADIENT_* neveket csak a legördülő listában mutassa;
+   a kiválasztott érték ne tolja le a Fény mezőt. */
 /* ── Smart Engine Panels ─────────────────────────────────────── */
 .meterLabel{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:3px}
 .meterBar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-bottom:10px}
@@ -581,7 +584,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--cyan);cursor:poin
 .paletteSwatch:hover{transform:scale(1.12);border-color:var(--text)}
 .paletteSwatch.sel{border-color:var(--cyan);box-shadow:0 0 10px rgba(42,212,255,.4)}
 /* ── Responsive ──────────────────────────────────────────────── */
-@media(max-width:1100px){.g12{grid-template-columns:1fr}.c6,.c4,.c3,.c8{grid-column:span 1}.g2,.g3,.g4{grid-template-columns:1fr}.frow3,.frow4{grid-template-columns:1fr 1fr}.segRow{grid-template-columns:45px 45px 1fr 40px 35px}}
+@media(max-width:1100px){.g12{grid-template-columns:1fr}.c6,.c4,.c3,.c8{grid-column:span 1}.g2,.g3,.g4{grid-template-columns:1fr}.frow3,.frow4{grid-template-columns:1fr 1fr}.segRow{grid-template-columns:45px 42px minmax(0,1fr) 44px 32px}}
 @media(max-width:640px){.topbar{flex-direction:column;align-items:flex-start;gap:10px}.statusBar{flex-wrap:wrap}.brand h1{font-size:16px}.frow,.frow3,.frow4{grid-template-columns:1fr}.g2,.g3,.g4{grid-template-columns:1fr}.segRow{grid-template-columns:1fr 1fr;gap:4px}.nav{overflow-x:auto;flex-wrap:nowrap}.navBtn{flex-shrink:0}.paletteGrid{grid-template-columns:repeat(6,1fr)}}
 </style>
 </head><body>
@@ -1223,7 +1226,7 @@ function renderSegs(segs){
     for(let s=0;s<3;s++){
       const i=side*3+s,seg=segs[i]||{start:0,count:0,source:0,brightness:255,reverse:false};
       const bri=seg.brightness??seg.bri??255,rev=seg.reverse??seg.rev??false;
-      h+=`<div class="segRow"><div><label>Start</label><input type="number" id="s${i}st" value="${seg.start??0}" min="0" max="119" onchange="updateMapperPreview()"></div><div><label>DB</label><input type="number" id="s${i}co" value="${seg.count??0}" min="0" max="120" onchange="updateMapperPreview()"></div><div><label>Forrás</label><select id="s${i}src" onchange="updateMapperPreview()">${names.map((n,j)=>`<option value="${j}" ${(seg.source??0)===j?"selected":""}>${n}</option>`).join("")}</select></div><div><label>Fény</label><input type="number" id="s${i}bri" value="${bri}" min="0" max="255"></div><div><label>↔</label><input type="checkbox" id="s${i}rev" ${rev?"checked":""}></div></div>`;
+      h+=`<div class="segRow"><div><label>Start</label><input type="number" id="s${i}st" value="${seg.start??0}" min="0" max="119" onchange="updateMapperPreview()"></div><div><label>DB</label><input type="number" id="s${i}co" value="${seg.count??0}" min="0" max="120" onchange="updateMapperPreview()"></div><div><label>SRC</label><select id="s${i}src" onchange="updateMapperPreview()">${names.map((n,j)=>`<option value="${j}" ${(seg.source??0)===j?"selected":""}>${n}</option>`).join("")}</select></div><div><label>Fény</label><input type="number" id="s${i}bri" value="${bri}" min="0" max="255"></div><div><label>↔</label><input type="checkbox" id="s${i}rev" ${rev?"checked":""}></div></div>`;
     }
   }
   el.innerHTML=h;
