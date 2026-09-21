@@ -55,6 +55,42 @@ effect_count = len(re.findall(r'"(?:[^"\\]|\\.)*"', effects.group(1)))
 if effect_count != 23:
     fail(f"effect count changed: expected 23, got {effect_count}")
 
+# Firmware source inventory: these symbols are required by the current hardened build.
+REQUIRED_FIRMWARE_SYMBOLS = [
+    "setup()", "loop()", "readAmbilight", "renderZonesToLeds", "renderMood",
+    "saveConfig", "loadConfig", "saveMapper", "loadMapper",
+    "setupRoutes", "broadcastRealtime", "broadcastMoodStatus",
+    "handleWiFi", "connectWiFi", "handleTVWatchdog", "effectiveBrightness",
+    "zoneFromSource", "gradientSource", "webAuthCheck", "webAuthSilent",
+]
+for symbol in REQUIRED_FIRMWARE_SYMBOLS:
+    if symbol not in fw:
+        fail(f"firmware symbol missing: {symbol}")
+
+# Endpoint inventory: firmware must still expose every browser-used API contract.
+for ep in expected_endpoints:
+    if ep not in fw:
+        fail(f"firmware endpoint missing: {ep}")
+
+# Mapper/source contracts must exist in both browser and firmware.
+for token in ["GRAD_TOP", "GRAD_RIGHT", "GRAD_BOT", "GRAD_LEFT", "L0R0_BL", "L1R1_BL"]:
+    if token not in html:
+        fail(f"browser mapper token missing: {token}")
+for token in ["SRC_GRADIENT_TOP", "SRC_GRADIENT_RIGHT", "SRC_GRADIENT_BOTTOM", "SRC_GRADIENT_LEFT", "SRC_L0_R0_BLEND", "SRC_L1_R1_BLEND"]:
+    if token not in fw:
+        fail(f"firmware mapper token missing: {token}")
+
+# Critical runtime invariants.
+if "loadMapper(true);" not in fw or "saveConfig(true)" not in fw:
+    fail("mapper persistence/migration invariant missing")
+if "tvIP=DEFAULT_TV_IP" not in fw or 'prefs.getString("tvip"' not in fw:
+    fail("TV-IP NVS persistence invariant missing")
+
+print("  Firmware symbol inventory: present")
+print("  Firmware endpoint inventory: present")
+print("  Mapper source contract: present")
+print("  Persistence invariants: present")
+
 print("PASS: single-source UI parity")
 print("  source/docs: identical")
 print("  source/embedded header: identical")
