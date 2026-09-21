@@ -798,10 +798,19 @@ function collectCfg(){
 /* ── Actions ────────────────────────────────────────────────────── */
 async function saveConfig(){
   try{
-    const cfg=collectCfg();    await apiFormPost("/api/config",{brightness:cfg.brightness,smoothing:cfg.smoothing,blackThreshold:cfg.black_threshold});
+    const cfg=collectCfg();    await apiFormPost("/api/config",{brightness:cfg.brightness,smoothing:cfg.smoothing,blackThreshold:cfg.black_threshold,
+      dyn_on:cfg.dyn_on?1:0,dyn_min:cfg.dyn_min,dyn_max:cfg.dyn_max,dyn_resp:cfg.dyn_resp,
+      mood_dyn:cfg.mood_dyn?1:0,mood_dep:cfg.mood_dep,tv_sync:cfg.tv_sync?1:0,tv_bsync:cfg.tv_bsync?1:0});
     if($("cfgTvIP").value) await apiFormPost("/api/tv",{ip:$("cfgTvIP").value});
     await apiPost("/api/mapper",{segments:cfg.segments});
-    await apiFormPost("/api/mood",{leftMode:cfg.left.effect,rightMode:cfg.right.effect,leftHue:cfg.left.hue,rightHue:cfg.right.hue,leftSat:cfg.left.sat,rightSat:cfg.right.sat,leftVal:cfg.left.bri,rightVal:cfg.right.bri,linkMode:cfg.mood_link});
+    const moodArgs=(side)=>({
+      [side+"Mode"]:cfg[side].mode?1:0,[side+"Effect"]:cfg[side].effect,[side+"Hue"]:cfg[side].hue,
+      [side+"Sat"]:cfg[side].sat,[side+"Val"]:cfg[side].bri,[side+"Speed"]:cfg[side].speed,
+      [side+"Palette"]:cfg[side].pal,[side+"Scale"]:cfg[side].scale,[side+"Motion"]:cfg[side].motion,
+      [side+"Glow"]:cfg[side].glow,[side+"Density"]:cfg[side].den,[side+"Turbulence"]:cfg[side].turb,
+      [side+"ColorMode"]:cfg[side].cm,[side+"Auto"]:cfg[side].auto?1:0,[side+"Reverse"]:cfg[side].rev?1:0
+    });
+    await apiFormPost("/api/mood",{...moodArgs("left"),...moodArgs("right"),linkMode:cfg.mood_link});
     await apiFormPost("/api/sideclone",{enabled:cfg.clone_on?1:0,brightness:cfg.clone_bri,leftStart:cfg.clone_l_start,leftCount:cfg.clone_l_count,rightStart:cfg.clone_r_start,rightCount:cfg.clone_r_count,leftReverse:cfg.clone_l_rev?1:0,rightReverse:cfg.clone_r_rev?1:0});
     toast("Beállítások elmentve ✓");setTimeout(loadAll,300);
   }catch(e){toast("Mentési hiba: "+e.message,1)}
