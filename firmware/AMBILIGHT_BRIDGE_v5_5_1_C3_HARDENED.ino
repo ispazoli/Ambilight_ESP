@@ -866,7 +866,9 @@ class SmartEngine{
    SECTION 2 — APPLICATION CORE
    ═══════════════════════════════════════════════════════════════════════════ */
 let espIP=localStorage.getItem("ab_ip")||"",auth=localStorage.getItem("ab_auth")||"";
-let espHost="",espPort=8080,wsPort=81,ws=null,wsTO=null,config=null,fps_f=0,fps_t=performance.now(),fps_v=0;
+let espHost="",espPort=8080,wsPort=81,ws=null,wsTO=null,pollTO=null,config=null,fps_f=0,fps_t=performance.now(),fps_v=0;
+let mapperSources=[],mapperMaxSegments=12;
+const SRC_FALLBACK=["BLACK","L0","L1","R0","R1","L_AVG","R_AVG","ALL_AVG","LR_TOP","LR_BOT","VERT_AVG","L0R0_BL","L1R1_BL","GRAD_TOP","GRAD_RIGHT","GRAD_BOT","GRAD_LEFT"];
 let securePage=location.protocol==="https:";
 let localESPPage=location.protocol==="http:" && (location.port==="8080" || location.hostname==="ambilight.local");
 function normalizeESP(v){
@@ -906,13 +908,18 @@ async function api(p,o={}){
   if(r.status===401&&!auth){const pw=prompt("Web auth jelszó:","ambilight");if(pw){auth="Basic "+btoa("admin:"+pw);localStorage.setItem("ab_auth",auth);return api(p,o)}}
   return r;
 }
-async function apiGet(p){const r=await api(p);if(!r.ok)throw Error(r.status);return r.json()}
-async function apiPost(p,b){const r=await api(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});if(!r.ok)throw Error(await r.text());return r.json()}
+async function responseError(r,path){
+  let detail="";try{detail=(await r.text()).trim()}catch(e){}
+  if(detail.length>240)detail=detail.slice(0,240)+"…";
+  return Error(path+" — HTTP "+r.status+(detail?" — "+detail:""));
+}
+async function apiGet(p){const r=await api(p);if(!r.ok)throw await responseError(r,p);return r.json()}
+async function apiPost(p,b){const r=await api(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});if(!r.ok)throw await responseError(r,p);return r.json()}
 async function apiFormPost(p,b){
   const body=new URLSearchParams();
   Object.entries(b||{}).forEach(([k,v])=>{if(v!==undefined&&v!==null)body.set(k,String(v))});
   const r=await api(p,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body});
-  if(!r.ok)throw Error(await r.text()); return r.json();
+  if(!r.ok)throw await responseError(r,p); return r.json();
 }
 
 /* ── Toast ──────────────────────────────────────────────────────── */
@@ -922,19 +929,41 @@ function toast(m,e){const t=$("toast");t.textContent=m;t.className="toast "+(e?"
 function startWS(){
   if(!espIP)return;
   try{ws=new WebSocket(wsUrl())}catch(e){return scheduleWS()}
-  ws.onopen=()=>{const d=$("wsDot");if(d)d.style.display="inline-block";const l=$("wsLabel");if(l)l.style.display="inline";updateConn(true)};
-  ws.onmessage=e=>{try{const f=JSON.parse(e.data);if(pipeline.accept(f,Date.now()).accepted){fps_f++;const n=performance.now();if(n-fps_t>=1000){fps_v=Math.round(fps_f*1000/(n-fps_t));fps_f=0;fps_t=n;$("fpsChip").textContent=fps_v+" FPS"}engine.process({zones:f.zones});updateLEDBar(f.zones);updateZones(f.zones)}}catch(err){}}
-  ws.onclose=()=>{ws=null;const d=$("wsDot");if(d)d.style.display="none";const l=$("wsLabel");if(l)l.style.display="none";scheduleWS();startPoll()};
+  ws.onopen=()=>{
+    if(pollTO){clearTimeout(pollTO);pollTO=null;}
+    const d=$("wsDot");if(d)d.style.display="inline-block";const l=$("wsLabel");if(l)l.style.display="inline";updateConn(true,config?.tv_online??false);
+  };
+  ws.onmessage=e=>{try{
+    const f=JSON.parse(e.data);
+    if(pipeline.accept(f,Date.now()).accepted){
+      fps_f++;const n=performance.now();
+      if(n-fps_t>=1000){fps_v=Math.round(fps_f*1000/(n-fps_t));fps_f=0;fps_t=n;const fc=$("fpsChip");if(fc)fc.textContent=fps_v+" FPS"}
+      engine.process({zones:f.zones});updateLEDBar(f.zones);updateZones(f.zones);updateConn(true,!!f.tv);
+    }
+  }catch(err){}}
+  ws.onclose=()=>{
+    ws=null;const d=$("wsDot");if(d)d.style.display="none";const l=$("wsLabel");if(l)l.style.display="none";
+    scheduleWS();startPoll();
+  };
   ws.onerror=()=>{if(ws)ws.close()};
 }
 function scheduleWS(){if(wsTO)clearTimeout(wsTO);wsTO=setTimeout(startWS,2000)}
-function startPoll(){if(ws)return;pollRealtime();}
+function startPoll(){
+  if(ws||!espIP)return;
+  if(pollTO)clearTimeout(pollTO);
+  pollTO=setTimeout(pollRealtime,0);
+}
 let pollBusy=false;
 async function pollRealtime(){
+  pollTO=null;
   if(ws||pollBusy||!espIP)return;
   pollBusy=true;
-  try{const f=await apiGet("/api/realtime");if(pipeline.accept(f,Date.now()).accepted){fps_f++;const n=performance.now();if(n-fps_t>=1000){fps_v=Math.round(fps_f*1000/(n-fps_t));fps_f=0;fps_t=n;$("fpsChip").textContent=fps_v+" FPS"}engine.process({zones:f.zones});updateLEDBar(f.zones);updateZones(f.zones)}}catch(e){}
-  pollBusy=false;setTimeout(pollRealtime,ws?5000:50);
+  try{const f=await apiGet("/api/realtime");if(pipeline.accept(f,Date.now()).accepted){
+    fps_f++;const n=performance.now();if(n-fps_t>=1000){fps_v=Math.round(fps_f*1000/(n-fps_t));fps_f=0;fps_t=n;const fc=$("fpsChip");if(fc)fc.textContent=fps_v+" FPS"}
+    engine.process({zones:f.zones});updateLEDBar(f.zones);updateZones(f.zones);updateConn(true,!!f.tv);
+  }}catch(e){}
+  pollBusy=false;
+  if(!ws&&espIP)pollTO=setTimeout(pollRealtime,500);
 }
 
 /* ── Connect ────────────────────────────────────────────────────── */
@@ -949,6 +978,12 @@ function updateConn(on,tvOnline){
     $("tvLabel").textContent="TV —";$("espLabel").textContent="ESP —";
   }
 }
+function applyCapabilities(cap){
+  const m=cap?.mapper||{};
+  mapperMaxSegments=Math.max(1,Math.min(12,Number(m.maxSegments)||12));
+  mapperSources=Array.isArray(m.sources)?m.sources.sort((a,b)=>(a.id??0)-(b.id??0)).map(x=>String(x.name??("SRC_"+x.id))):[];
+}
+
 async function doConnect(){
   const raw=$("modalIP").value.trim()||(localESPPage?location.hostname:"ambilight.local"),pw=$("modalAuth").value;
   if(securePage && !localESPPage){
@@ -966,6 +1001,7 @@ async function doConnect(){
   if(pw){auth="Basic "+btoa("admin:"+pw);localStorage.setItem("ab_auth",auth)}
   try{
     const cap=await apiGet("/api/capabilities");
+    applyCapabilities(cap);
     const s=await apiGet("/api/state");
     config={...cap,...normalizeState(s)};
     $("connectModal").style.display="none";applyConfig(s);updateConn(true,config.tv_online);startWS();startPoll();
@@ -973,7 +1009,8 @@ async function doConnect(){
 }
 async function loadAll(){
   try{
-    const s=await apiGet("/api/state");config=normalizeState(s);
+    const cap=await apiGet("/api/capabilities");applyCapabilities(cap);
+    const s=await apiGet("/api/state");config={...cap,...normalizeState(s)};
     applyConfig(s);$("connectModal").style.display="none";updateConn(true,config.tv_online);
     if(!ws)startWS();startPoll();
   }catch(e){$("connectModal").style.display="flex";updateConn(false)}
@@ -1160,15 +1197,37 @@ function applyMood(side,m){
 function colMood(side){return{mode:$("m_"+side+"_on").checked?1:0,effect:+$("m_"+side+"_eff").value,auto:$("m_"+side+"_auto").checked,hue:+$("m_"+side+"_hue").value,sat:+$("m_"+side+"_sat").value,bri:+$("m_"+side+"_bri").value,speed:+$("m_"+side+"_sp").value,pal:+$("m_"+side+"_pal").value,scale:+$("m_"+side+"_sc").value,motion:+$("m_"+side+"_mot").value,glow:+$("m_"+side+"_gl").value,density:+$("m_"+side+"_den").value,turb:+$("m_"+side+"_tur").value,cm:+$("m_"+side+"_cm").value,rev:$("m_"+side+"_rev").checked}}
 
 /* ── Segments ───────────────────────────────────────────────────── */
-const SRC=["BLACK","L0","L1","R0","R1","L_AVG","R_AVG","ALL_AVG","LR_TOP","LR_BOT","VERT_AVG","L0R0_BL","L1R1_BL","GRAD_TOP","GRAD_RIGHT","GRAD_BOT","GRAD_LEFT"];
 const SIDES=["BOTTOM (0–29)","LEFT (30–59)","TOP (60–89)","RIGHT (90–119)"];
+function canonicalMapperDefaults(){
+  const out=Array.from({length:12},()=>({start:0,count:0,source:0,bri:255,brightness:255,rev:false,reverse:false}));
+  const src=[1,2,3,4];
+  for(let i=0;i<4;i++)out[i]={start:i*30,count:30,source:src[i],bri:255,brightness:255,rev:false,reverse:false};
+  return out;
+}
 function renderSegs(segs){
-  const el=$("segList");if(!el)return;if(!segs||!segs.length)segs=Array.from({length:12},(_,i)=>({start:(i/3|0)*30+(i%3)*10,count:10,source:((i/3|0)+13),bri:255,rev:false}));
+  const el=$("segList");if(!el)return;
+  if(!Array.isArray(segs)||!segs.length)segs=canonicalMapperDefaults();
+  const names=mapperSources.length?mapperSources:SRC_FALLBACK;
   let h="";
-  for(let side=0;side<4;side++){h+=`<div class="segSide">${SIDES[side]}</div>`;for(let s=0;s<3;s++){const i=side*3+s,seg=segs[i]||{};h+=`<div class="segRow"><div><label>Start</label><input type="number" id="s${i}st" value="${seg.start??(side*30+s*10)}" min="0" max="119" onchange="updateMapperPreview()"></div><div><label>DB</label><input type="number" id="s${i}co" value="${seg.count??10}" min="0" max="120" onchange="updateMapperPreview()"></div><div><label>Forrás</label><select id="s${i}src" onchange="updateMapperPreview()">${SRC.map((n,j)=>`<option value="${j}" ${(seg.source??((side)+13))===j?"selected":""}>${n}</option>`).join("")}</select></div><div><label>Fény</label><input type="number" id="s${i}bri" value="${seg.bri??255}" min="0" max="255"></div><div><label>↔</label><input type="checkbox" id="s${i}rev" ${seg.rev?"checked":""}></div></div>`}}
+  for(let side=0;side<4;side++){
+    h+=`<div class="segSide">${SIDES[side]}</div>`;
+    for(let s=0;s<3;s++){
+      const i=side*3+s,seg=segs[i]||{start:0,count:0,source:0,brightness:255,reverse:false};
+      const bri=seg.brightness??seg.bri??255,rev=seg.reverse??seg.rev??false;
+      h+=`<div class="segRow"><div><label>Start</label><input type="number" id="s${i}st" value="${seg.start??0}" min="0" max="119" onchange="updateMapperPreview()"></div><div><label>DB</label><input type="number" id="s${i}co" value="${seg.count??0}" min="0" max="120" onchange="updateMapperPreview()"></div><div><label>Forrás</label><select id="s${i}src" onchange="updateMapperPreview()">${names.map((n,j)=>`<option value="${j}" ${(seg.source??0)===j?"selected":""}>${n}</option>`).join("")}</select></div><div><label>Fény</label><input type="number" id="s${i}bri" value="${bri}" min="0" max="255"></div><div><label>↔</label><input type="checkbox" id="s${i}rev" ${rev?"checked":""}></div></div>`;
+    }
+  }
   el.innerHTML=h;
 }
-function collectSegs(){const o=[];for(let i=0;i<12;i++)o.push({start:+($("s"+i+"st")?.value||0),count:+($("s"+i+"co")?.value||0),source:+($("s"+i+"src")?.value||0),bri:+($("s"+i+"bri")?.value||0),rev:$("s"+i+"rev")?.checked||false});return o}
+function collectSegs(){
+  const o=[];
+  for(let i=0;i<Math.min(12,mapperMaxSegments);i++){
+    const count=+($("s"+i+"co")?.value||0);
+    if(count<=0)continue; // üres UI slot nem kerül POST-ba: firmware mapperValid() szerint a count=0 érvénytelen
+    o.push({start:+($("s"+i+"st")?.value||0),count,source:+($("s"+i+"src")?.value||0),brightness:+($("s"+i+"bri")?.value||255),reverse:$("s"+i+"rev")?.checked||false});
+  }
+  return o;
+}
 function collectCfg(){
   return {
     brightness:+$("cfgBri").value,smoothing:+$("cfgSmooth").value,black_threshold:+$("cfgBlack").value,
@@ -1189,12 +1248,17 @@ function collectCfg(){
 
 /* ── Actions ────────────────────────────────────────────────────── */
 async function saveConfig(){
+  let step="CONFIG";
   try{
-    const cfg=collectCfg();    await apiFormPost("/api/config",{brightness:cfg.brightness,smoothing:cfg.smoothing,blackThreshold:cfg.black_threshold,
+    const cfg=collectCfg();
+    await apiFormPost("/api/config",{brightness:cfg.brightness,smoothing:cfg.smoothing,blackThreshold:cfg.black_threshold,
       dyn_on:cfg.dyn_on?1:0,dyn_min:cfg.dyn_min,dyn_max:cfg.dyn_max,dyn_resp:cfg.dyn_resp,
       mood_dyn:cfg.mood_dyn?1:0,mood_dep:cfg.mood_dep,tv_sync:cfg.tv_sync?1:0,tv_bsync:cfg.tv_bsync?1:0});
+    step="TV";
     if($("cfgTvIP").value) await apiFormPost("/api/tv",{ip:$("cfgTvIP").value});
+    step="MAPPER";
     await apiPost("/api/mapper",{segments:cfg.segments});
+    step="MOOD";
     const moodArgs=(side)=>({
       [side+"Mode"]:cfg[side].mode?1:0,[side+"Effect"]:cfg[side].effect,[side+"Hue"]:cfg[side].hue,
       [side+"Sat"]:cfg[side].sat,[side+"Val"]:cfg[side].bri,[side+"Speed"]:cfg[side].speed,
@@ -1203,13 +1267,14 @@ async function saveConfig(){
       [side+"ColorMode"]:cfg[side].cm,[side+"Auto"]:cfg[side].auto?1:0,[side+"Reverse"]:cfg[side].rev?1:0
     });
     await apiFormPost("/api/mood",{...moodArgs("left"),...moodArgs("right"),linkMode:cfg.mood_link});
+    step="SIDECLONE";
     await apiFormPost("/api/sideclone",{enabled:cfg.clone_on?1:0,brightness:cfg.clone_bri,leftStart:cfg.clone_l_start,leftCount:cfg.clone_l_count,rightStart:cfg.clone_r_start,rightCount:cfg.clone_r_count,leftReverse:cfg.clone_l_rev?1:0,rightReverse:cfg.clone_r_rev?1:0});
     toast("Beállítások elmentve ✓");setTimeout(loadAll,300);
-  }catch(e){toast("Mentési hiba: "+e.message,1)}
+  }catch(e){toast("Mentési hiba ["+step+"]: "+e.message,1)}
 }
 async function defaults(){
   try{
-    const segs=[0,1,2,3].map((src,i)=>({start:i*30,count:30,source:src+1,brightness:255,reverse:false}));
+    const segs=canonicalMapperDefaults().filter(x=>x.count>0);
     await apiFormPost("/api/config",{brightness:160,smoothing:70,blackThreshold:4});
     await apiPost("/api/mapper",{segments:segs});
     await apiFormPost("/api/mood",{leftMode:0,rightMode:0,leftHue:0,rightHue:120,leftSat:255,rightSat:255,leftVal:200,rightVal:200,linkMode:0});
@@ -1274,7 +1339,7 @@ $$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
 ["left","right"].forEach(s=>["hue","sat","bri","sp","sc","mot","gl","den","tur"].forEach(p=>$("m_"+s+"_"+p)?.addEventListener("input",()=>{const v=$("m_"+s+"_"+p).value;const e=$("m_"+s+"_"+p+"V");if(e)e.textContent=p==="hue"?v+"°":v})));
 
 /* ── Init ───────────────────────────────────────────────────────── */
-$("moodLeftForm").innerHTML=moodForm("left");$("moodRightForm").innerHTML=moodForm("right");renderSegs([]);renderScene({brightness:0,saturation:0,motion:0,energy:0,dominantColor:{r:0,g:0,b:0},dominantHue:0,warmCool:0,zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});renderAdaptive({brightness:50,speed:50,reaction:50,sceneType:"NORMAL"});renderZoneAnalysis({zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});
+$("moodLeftForm").innerHTML=moodForm("left");$("moodRightForm").innerHTML=moodForm("right");renderSegs(canonicalMapperDefaults());renderScene({brightness:0,saturation:0,motion:0,energy:0,dominantColor:{r:0,g:0,b:0},dominantHue:0,warmCool:0,zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});renderAdaptive({brightness:50,speed:50,reaction:50,sceneType:"NORMAL"});renderZoneAnalysis({zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});
 if(localESPPage){
   espHost=location.hostname; espPort=Number(location.port)||8080;
   espIP=espHost+(espPort!==8080?":"+espPort:"");
