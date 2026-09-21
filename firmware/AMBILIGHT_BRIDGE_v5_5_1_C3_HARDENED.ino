@@ -261,6 +261,7 @@ static char tvJsonBuf[8192];                // a rövid GET kérések válaszáh
 #define TV_MASTER_POLL_MS           5000
 #define TV_AMBILIGHT_READ_TIMEOUT_MS 800   // teljes ambilight-keret olvasási plafon
 #define MOOD_FRAME_INTERVAL_MS      40
+#define MOOD_WS_STATUS_INTERVAL_MS  1000
 #define WDT_TIMEOUT_MS              8000   // task watchdog időtúlépés (loop beragadás ellen)
 
 /* ===== UTILITIES ======================================================== */
@@ -866,7 +867,7 @@ class SmartEngine{
    SECTION 2 — APPLICATION CORE
    ═══════════════════════════════════════════════════════════════════════════ */
 let espIP=localStorage.getItem("ab_ip")||"",auth=localStorage.getItem("ab_auth")||"";
-let espHost="",espPort=8080,wsPort=81,ws=null,wsTO=null,pollTO=null,config=null,fps_f=0,fps_t=performance.now(),fps_v=0;
+let espHost="",espPort=8080,wsPort=81,ws=null,wsTO=null,pollTO=null,config=null,fps_f=0,fps_t=performance.now(),fps_v=0,wsRetryMs=1000;
 let mapperSources=[],mapperMaxSegments=12;
 const SRC_FALLBACK=["BLACK","L0","L1","R0","R1","L_AVG","R_AVG","ALL_AVG","LR_TOP","LR_BOT","VERT_AVG","L0R0_BL","L1R1_BL","GRAD_TOP","GRAD_RIGHT","GRAD_BOT","GRAD_LEFT"];
 let securePage=location.protocol==="https:";
@@ -927,17 +928,19 @@ function toast(m,e){const t=$("toast");t.textContent=m;t.className="toast "+(e?"
 
 /* ── WebSocket ──────────────────────────────────────────────────── */
 function startWS(){
-  if(!espIP)return;
-  try{ws=new WebSocket(wsUrl())}catch(e){return scheduleWS()}
+  if(!espIP||ws)return;
+  try{ws=new WebSocket(wsUrl())}catch(e){scheduleWS();return}
   ws.onopen=()=>{
+    wsRetryMs=1000;
     if(pollTO){clearTimeout(pollTO);pollTO=null;}
     const d=$("wsDot");if(d)d.style.display="inline-block";const l=$("wsLabel");if(l)l.style.display="inline";updateConn(true,config?.tv_online??false);
   };
   ws.onmessage=e=>{try{
     const f=JSON.parse(e.data);
+    if(f.moodStatus){updateConn(true,!!f.tv);return;}
     if(pipeline.accept(f,Date.now()).accepted){
-      fps_f++;const n=performance.now();
-      if(n-fps_t>=1000){fps_v=Math.round(fps_f*1000/(n-fps_t));fps_f=0;fps_t=n;const fc=$("fpsChip");if(fc)fc.textContent=fps_v+" FPS"}
+      fps_f++;const now=performance.now();
+      if(now-fps_t>=1000){fps_v=Math.round(fps_f*1000/(now-fps_t));fps_f=0;fps_t=now;const fc=$("fpsChip");if(fc)fc.textContent=fps_v+" FPS"}
       engine.process({zones:f.zones});updateLEDBar(f.zones);updateZones(f.zones);updateConn(true,!!f.tv);
     }
   }catch(err){}}
@@ -947,7 +950,13 @@ function startWS(){
   };
   ws.onerror=()=>{if(ws)ws.close()};
 }
-function scheduleWS(){if(wsTO)clearTimeout(wsTO);wsTO=setTimeout(startWS,2000)}
+function scheduleWS(){
+  if(ws||!espIP)return;
+  if(wsTO)clearTimeout(wsTO);
+  const delay=wsRetryMs;
+  wsTO=setTimeout(()=>{wsTO=null;startWS()},delay);
+  wsRetryMs=Math.min(wsRetryMs*2,15000);
+}
 function startPoll(){
   if(ws||!espIP)return;
   if(pollTO)clearTimeout(pollTO);
@@ -1449,6 +1458,16 @@ void broadcastRealtime(){
   String out; serializeJson(doc,out); wsServer.broadcastTXT(out);
 }
 
+// Mood-mode application heartbeat: low-rate WS status frame while no TV frame exists.
+void broadcastMoodStatus(){
+  JsonDocument doc;
+  doc["seq"]=smartFrameSeq; doc["ts"]=millis(); doc["tv"]=tvOnline;
+  doc["mood"]=true; doc["moodStatus"]=true;
+  JsonArray z=doc["zones"].to<JsonArray>();
+  for(int i=0;i<4;i++){JsonObject zz=z.add<JsonObject>(); zz["r"]=targetZones[i].r; zz["g"]=targetZones[i].g; zz["b"]=targetZones[i].b;}
+  String out; serializeJson(doc,out); wsServer.broadcastTXT(out);
+}
+
 /* ===== REST HANDLERS ==================================================== */
 
 // GET /api/state
@@ -1533,7 +1552,6 @@ void saveConfig();
 bool detectTVTopology();
 
 void loadMapper(bool defaultsIfMissing){
-  tvIP=DEFAULT_TV_IP;
   prefs.begin("cfg",true); bool has=prefs.isKey("segcnt"); uint8_t n=prefs.getUChar("segcnt",0);
   if(has && n>0 && n<=MAX_SEGMENTS){ segmentCount=n; bool all=true; for(uint8_t i=0;i<n;i++){ char k[8];
       snprintf(k,sizeof(k),"s%ust",i); segments[i].start=prefs.getUShort(k,0);
@@ -1830,6 +1848,7 @@ void startWebServices(){
   server.collectHeaders(COLLECT_HEADERS,2);
   server.begin();
   wsServer.begin();
+  wsServer.enableHeartbeat(15000,3000,2);
   wsServer.onEvent(wsEvent);
   webStarted=true;
   Serial.println("[WEB] REST(8080)+WS(81) elindult");
@@ -1893,6 +1912,7 @@ void connectWiFi(){
   WiFi.setAutoReconnect(true);            // az stack is próbálkozzon önmagától
   WiFi.persistent(false);
   WiFi.begin(ssid.c_str(),pass.c_str());
+  WiFi.setSleep(false);              // Realtime WS: modem-sleep kikapcsolva
   wifiConnectInProgress=true; wifiAttemptStarted=millis();
   staConnectDeadline=millis()+AP_FALLBACK_MS;
   Serial.printf("[WiFi] csatlakozás: %s\n",ssid.c_str());
@@ -2402,6 +2422,12 @@ void loop(){
     renderMood();
     FastLED.setBrightness(globalBrightness);
     FastLED.show();
+  }
+
+  static unsigned long lastMoodWsStatus=0;
+  if(moodActive && now-lastMoodWsStatus>=MOOD_WS_STATUS_INTERVAL_MS){
+    lastMoodWsStatus=now;
+    broadcastMoodStatus();
   }
 
   // [WDT] watchdog karbantartás – ha a loop() beragad, a chip újraindul
