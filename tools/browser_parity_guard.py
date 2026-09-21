@@ -93,6 +93,10 @@ for token in ["FIXED_MAPPER_SEGMENTS=12", "FIXED_MAPPER_LEDS=10"]:
         fail(f"browser fixed mapper constant missing: {token}")
 
 # Critical runtime invariants.
+# JointSPACE compatibility: Philips TV responses are observed as HTTP chunked under HTTP/1.1;
+# request HTTP/1.0 so the legacy body parser receives an unchunked response.
+if "HTTP/1.1" in fw or fw.count("HTTP/1.0") < 2:
+    fail("JointSPACE requests are not pinned to HTTP/1.0")
 # A successful TV Ambilight frame must release any stale power-state output gate.
 anchor = "goodFrames++; lastSuccessfulPoll=millis(); tvConsecutiveFailures=0;"
 anchor_i = fw.find(anchor)
