@@ -59,7 +59,7 @@ jobs:
         run: |
           rm -rf .ci-sketch
           mkdir -p .ci-sketch
-          cp firmware/AMBILIGHT_BRIDGE_v5_5_1_C3_HARDENED.ino .ci-sketch/
+          cp firmware/AMBILIGHT_BRIDGE_v5_5_1_C3_HARDENED.ino .ci-sketch/AmbilightBridge.ino
           cp firmware/embedded_ui.h .ci-sketch/
 
       - name: Compile ESP32-C3 firmware
