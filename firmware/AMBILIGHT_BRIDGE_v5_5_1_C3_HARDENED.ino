@@ -1462,6 +1462,11 @@ void saveMapper(){
     snprintf(k,sizeof(k),"s%ur",i); prefs.putBool(k,segments[i].reverse);
   } prefs.end();
 }
+/* ===== FORWARD DECLARATIONS =========================================== */
+void setDefaultMapping();
+void saveConfig();
+bool detectTVTopology();
+
 void loadMapper(bool defaultsIfMissing){
   tvIP=DEFAULT_TV_IP;
   prefs.begin("cfg",true); bool has=prefs.isKey("segcnt"); uint8_t n=prefs.getUChar("segcnt",0);
@@ -2129,11 +2134,6 @@ void renderMoodSide(const MoodConfig& m,uint16_t start,uint16_t count,bool rev,u
 void renderMood(){MoodConfig L=leftMood,R=rightMood;bool revR=false;uint8_t offR=0;if(moodLinkMode==MOOD_LINK_MIRROR){R=L;}else if(moodLinkMode==MOOD_LINK_SYMMETRIC){R=L;revR=true;R.hue=(R.hue+180)%360;}else if(moodLinkMode==MOOD_LINK_FLOW){R=L;offR=128;}renderMoodSide(L,moodLeftStart,moodLeftCount,false,0);renderMoodSide(R,moodRightStart,moodRightCount,revR,offR);}
 
 /* ===== PERSISTENCE (NVS) =============================================== */
-
-/* ===== FORWARD DECLARATIONS =========================================== */
-void setDefaultMapping();
-void saveConfig();
-bool detectTVTopology();
 
 void setDefaultMapping(){
   segmentCount=4; uint16_t per=LED_COUNT/4; const uint8_t src[4]={SRC_L0,SRC_L1,SRC_R0,SRC_R1};
