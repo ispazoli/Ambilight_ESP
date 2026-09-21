@@ -1257,14 +1257,15 @@ function collectCfg(){
 
 /* ── Actions ────────────────────────────────────────────────────── */
 async function saveConfig(){
-  let step="CONFIG";
+  let step="TV";
   try{
     const cfg=collectCfg();
+    // TV IP is persisted first, independently from the larger configuration transaction.
+    if($("cfgTvIP").value) await apiFormPost("/api/tv",{ip:$("cfgTvIP").value});
+    step="CONFIG";
     await apiFormPost("/api/config",{brightness:cfg.brightness,smoothing:cfg.smoothing,blackThreshold:cfg.black_threshold,
       dyn_on:cfg.dyn_on?1:0,dyn_min:cfg.dyn_min,dyn_max:cfg.dyn_max,dyn_resp:cfg.dyn_resp,
       mood_dyn:cfg.mood_dyn?1:0,mood_dep:cfg.mood_dep,tv_sync:cfg.tv_sync?1:0,tv_bsync:cfg.tv_bsync?1:0});
-    step="TV";
-    if($("cfgTvIP").value) await apiFormPost("/api/tv",{ip:$("cfgTvIP").value});
     step="MAPPER";
     await apiPost("/api/mapper",{segments:cfg.segments});
     step="MOOD";
@@ -1548,7 +1549,7 @@ void saveMapper(){
 }
 /* ===== FORWARD DECLARATIONS =========================================== */
 void setDefaultMapping();
-void saveConfig();
+void saveConfig(bool includeMapper=false);
 bool detectTVTopology();
 
 void loadMapper(bool defaultsIfMissing){
@@ -1596,7 +1597,7 @@ void apiConfig(){
   if(server.hasArg("tv_sync")) tvMasterSyncEnabled=server.arg("tv_sync").toInt()!=0;
   if(server.hasArg("tv_bsync")) tvMasterBrightnessEnabled=server.arg("tv_bsync").toInt()!=0;
   if(dynBrightMin>dynBrightMax){uint8_t t=dynBrightMin;dynBrightMin=dynBrightMax;dynBrightMax=t;}
-  saveConfig();
+  saveConfig(false);
   server.send(200,"application/json","{\"ok\":true}");
 }
 
@@ -1607,7 +1608,7 @@ void apiTV(){
     IPAddress ip;
     if(ip.fromString(server.arg("ip"))){ tvIP=ip; tvConsecutiveFailures=0; tvOnline=false;
       if(tvClient.connected())tvClient.stop();
-      saveConfig();
+      saveConfig(false);
       server.send(200,"application/json","{\"ok\":true}"); return; }
   }
   server.send(400,"application/json","{\"ok\":false,\"err\":\"invalid ip\"}");
@@ -1646,7 +1647,7 @@ void apiAuth(){
         setWebAuthPassword(p.c_str());
         webAuthOptOut=false;
       }
-      saveConfig();
+      saveConfig(false);
       char buf[64];
       snprintf(buf,sizeof(buf),"{\"ok\":true,\"enabled\":%s}",webAuthConfigured?"true":"false");
       server.send(200,"application/json",buf);
@@ -1699,7 +1700,7 @@ void apiSideClone(){
   if(server.hasArg("rightStart"))cloneRightStart=server.arg("rightStart").toInt(); if(server.hasArg("rightCount"))cloneRightCount=server.arg("rightCount").toInt();
   if(server.hasArg("leftReverse"))cloneLeftRev=server.arg("leftReverse").toInt()!=0; if(server.hasArg("rightReverse"))cloneRightRev=server.arg("rightReverse").toInt()!=0;
   if((uint32_t)cloneLeftStart+cloneLeftCount>LED_COUNT || (uint32_t)cloneRightStart+cloneRightCount>LED_COUNT){server.send(400,"application/json","{\"ok\":false,\"err\":\"range\"}");return;}
-  saveConfig(); server.send(200,"application/json","{\"ok\":true}");
+  saveConfig(false); server.send(200,"application/json","{\"ok\":true}");
 }
 
 // GET /api/topology
@@ -1733,7 +1734,7 @@ void apiMood(){
   readSide("left",leftMood,"leftMode","leftHue","leftSat","leftVal");
   readSide("right",rightMood,"rightMode","rightHue","rightSat","rightVal");
   if(server.hasArg("linkMode")) moodLinkMode=(MoodLinkMode)constrain(server.arg("linkMode").toInt(),0,3);
-  saveConfig();
+  saveConfig(false);
   server.send(200,"application/json","{\"ok\":true}");
 }
 /* ===== LED TEST + OTA =================================================== */
@@ -2225,7 +2226,7 @@ void setDefaultMapping(){
   for(uint8_t i=0;i<4;i++){segments[i].start=i*per;segments[i].count=per;segments[i].source=src[i];segments[i].brightness=255;segments[i].reverse=false;}
 }
 
-void saveConfig(){
+void saveConfig(bool includeMapper){
   prefs.begin("cfg",false); prefs.putUChar("cfg_ver",CONFIG_SCHEMA_VERSION); prefs.putUChar("bright",globalBrightness); prefs.putUChar("smooth",smoothing); prefs.putUChar("black",blackThreshold);
   prefs.putString("tvip",tvIP.toString());
   // Webes jelszó: csak sózott hash kerül NVS-be (a régi nyílt "webpw" kulcsot töröljük).
@@ -2252,7 +2253,8 @@ void saveConfig(){
   prefs.putBool("mood_dyn",moodDynEnabled);prefs.putUChar("mood_dep",moodDynDepth);
   prefs.putBool("tv_sync",tvMasterSyncEnabled);prefs.putBool("tv_bsync",tvMasterBrightnessEnabled);
   prefs.putBool("clone_en",sideCloneEnabled);prefs.putUChar("clone_br",sideCloneBrightness);prefs.putUShort("cl_st",cloneLeftStart);prefs.putUShort("cl_ct",cloneLeftCount);prefs.putUShort("cr_st",cloneRightStart);prefs.putUShort("cr_ct",cloneRightCount);prefs.putBool("cl_rev",cloneLeftRev);prefs.putBool("cr_rev",cloneRightRev);
-  prefs.end(); saveMapper();
+  prefs.end();
+  if(includeMapper) saveMapper();
 }
 
 void loadConfig(){
@@ -2298,20 +2300,16 @@ void loadConfig(){
     prefs.end();
     Serial.println("[AUTH] legacy plaintext password migrated and removed");
   }
-  // [FIX] A mappert a séma-migráció ELŐTT kell betölteni! A migrációs saveConfig()
-  //       a végén saveMapper()-t is hív, így ha a szegmensek még nincsenek
-  //       memóriában (boot után nullázva), a tárolt LED-mapping felülíródna.
-  //       A config és a mapper külön NVS-kulcsokon van, de a saveConfig()->saveMapper()
-  //       lánc miatt EGYÜTT migrálódnak → EGYÜTT is kell tesztelni (Regression Guard).
+  // Mapper is loaded independently from the general configuration transaction.
   loadMapper(true);
   if(fresh){
-    saveConfig();
+    saveConfig(true);
     Serial.println("[CFG] friss telepítés — alapértelmezett konfig");
   } else {
     if(segmentCount==0){ setDefaultMapping(); saveMapper(); }
     if(stored>0 && stored<CONFIG_SCHEMA_VERSION){
       Serial.printf("[CFG] konfig séma frissítve v%u -> v%u\n",stored,CONFIG_SCHEMA_VERSION);
-      saveConfig();   // most már a helyesen betöltött mappert menti tovább
+      saveConfig(true);   // séma-migrációkor a helyesen betöltött mappert is újramentjük
     }
   }
 }
