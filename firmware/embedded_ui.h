@@ -151,15 +151,15 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--cyan);cursor:poin
 .segBlock{margin-bottom:10px}
 .segSide{font-size:10px;color:var(--cyan);font-weight:750;text-transform:uppercase;letter-spacing:1.2px;
   padding:6px 0 8px;border-bottom:1px solid var(--line);margin-bottom:8px}
-.segRow{display:grid;grid-template-columns:52px 45px minmax(0,1fr) 48px 34px;gap:5px;align-items:end;
+.segRow{display:grid;grid-template-columns:72px minmax(0,1fr) 48px 34px;gap:5px;align-items:end;
   padding:7px 10px;border-radius:var(--r-sm);border:1px solid transparent;transition:all .2s}
 .segRow:hover{border-color:var(--line);background:rgba(16,28,48,.4)}
 .segRow label{font-size:8px;margin-bottom:1px}
 .segRow input,.segRow select{padding:5px 6px;font-size:11px;min-width:0;width:100%}
 .segRow select{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .segRow input[type=checkbox]{width:14px;height:14px;margin-bottom:5px}
-/* A forrásmező a hosszú GRADIENT_* neveket csak a legördülő listában mutassa;
-   a kiválasztott érték ne tolja le a Fény mezőt. */
+.segAddr{padding:5px 6px;border:1px solid var(--line);border-radius:var(--r-sm);background:rgba(10,18,30,.45);color:var(--soft);font-size:11px;font-variant-numeric:tabular-nums;text-align:center;white-space:nowrap}
+/* Fixed physical addressing: 4 sides × 30 LEDs, 3 × 10 LED segments per side. */
 /* ── Smart Engine Panels ─────────────────────────────────────── */
 .meterLabel{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:3px}
 .meterBar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-bottom:10px}
@@ -204,7 +204,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--cyan);cursor:poin
 .paletteSwatch:hover{transform:scale(1.12);border-color:var(--text)}
 .paletteSwatch.sel{border-color:var(--cyan);box-shadow:0 0 10px rgba(42,212,255,.4)}
 /* ── Responsive ──────────────────────────────────────────────── */
-@media(max-width:1100px){.g12{grid-template-columns:1fr}.c6,.c4,.c3,.c8{grid-column:span 1}.g2,.g3,.g4{grid-template-columns:1fr}.frow3,.frow4{grid-template-columns:1fr 1fr}.segRow{grid-template-columns:45px 42px minmax(0,1fr) 44px 32px}}
+@media(max-width:1100px){.g12{grid-template-columns:1fr}.c6,.c4,.c3,.c8{grid-column:span 1}.g2,.g3,.g4{grid-template-columns:1fr}.frow3,.frow4{grid-template-columns:1fr 1fr}.segRow{grid-template-columns:64px minmax(0,1fr) 44px 32px}}
 @media(max-width:640px){.topbar{flex-direction:column;align-items:flex-start;gap:10px}.statusBar{flex-wrap:wrap}.brand h1{font-size:16px}.frow,.frow3,.frow4{grid-template-columns:1fr}.g2,.g3,.g4{grid-template-columns:1fr}.segRow{grid-template-columns:1fr 1fr;gap:4px}.nav{overflow-x:auto;flex-wrap:nowrap}.navBtn{flex-shrink:0}.paletteGrid{grid-template-columns:repeat(6,1fr)}}
 </style>
 </head><body>
@@ -254,7 +254,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--cyan);cursor:poin
 
 <!-- ═══════════════ LED MAPPER ═══════════════ -->
 <section class="page" id="page-mapper">
-  <div class="card"><div class="cardHead"><span class="cardIcon">🗺️</span><h3>LED <b>Mapper</b> · 12 független szegmens · 4 oldal × 3</h3></div>
+  <div class="card"><div class="cardHead"><span class="cardIcon">🗺️</span><h3>LED <b>Mapper</b> · 12 független szegmens · 4 oldal × 30 LED · 3×10/oldal</h3></div>
     <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Minden szegmenshez rendelj TV zónát, gradiens irányt vagy keverési módot. A fizikai sorrend független a logikai zónáktól.</p>
     <div id="segList"></div>
     <div class="btnRow"><button class="btn btnDim" onclick="defaults()">↺ Gyári</button><button class="btn btnSave" onclick="saveConfig()">💾 Mentés</button></div>  </div>
@@ -830,33 +830,42 @@ function colMood(side){return{mode:$("m_"+side+"_on").checked?1:0,effect:+$("m_"
 
 /* ── Segments ───────────────────────────────────────────────────── */
 const SIDES=["BOTTOM (0–29)","LEFT (30–59)","TOP (60–89)","RIGHT (90–119)"];
+const FIXED_MAPPER_SEGMENTS=12;
+const FIXED_MAPPER_LEDS=10;
 function canonicalMapperDefaults(){
-  const out=Array.from({length:12},()=>({start:0,count:0,source:0,bri:255,brightness:255,rev:false,reverse:false}));
-  const src=[1,2,3,4];
-  for(let i=0;i<4;i++)out[i]={start:i*30,count:30,source:src[i],bri:255,brightness:255,rev:false,reverse:false};
-  return out;
+  return Array.from({length:FIXED_MAPPER_SEGMENTS},(_,i)=>({
+    start:i*FIXED_MAPPER_LEDS,
+    count:FIXED_MAPPER_LEDS,
+    source:[1,1,1,2,2,2,3,3,3,4,4,4][i],
+    bri:255,brightness:255,rev:false,reverse:false
+  }));
 }
 function renderSegs(segs){
   const el=$("segList");if(!el)return;
-  if(!Array.isArray(segs)||!segs.length)segs=canonicalMapperDefaults();
+  if(!Array.isArray(segs)||segs.length!==FIXED_MAPPER_SEGMENTS)segs=canonicalMapperDefaults();
   const names=mapperSources.length?mapperSources:SRC_FALLBACK;
   let h="";
   for(let side=0;side<4;side++){
     h+=`<div class="segSide">${SIDES[side]}</div>`;
     for(let s=0;s<3;s++){
-      const i=side*3+s,seg=segs[i]||{start:0,count:0,source:0,brightness:255,reverse:false};
+      const i=side*3+s,seg=segs[i]||canonicalMapperDefaults()[i];
+      const start=i*FIXED_MAPPER_LEDS,end=start+FIXED_MAPPER_LEDS-1;
       const bri=seg.brightness??seg.bri??255,rev=seg.reverse??seg.rev??false;
-      h+=`<div class="segRow"><div><label>Start</label><input type="number" id="s${i}st" value="${seg.start??0}" min="0" max="119" onchange="updateMapperPreview()"></div><div><label>DB</label><input type="number" id="s${i}co" value="${seg.count??0}" min="0" max="120" onchange="updateMapperPreview()"></div><div><label>SRC</label><select id="s${i}src" onchange="updateMapperPreview()">${names.map((n,j)=>`<option value="${j}" ${(seg.source??0)===j?"selected":""}>${n}</option>`).join("")}</select></div><div><label>Fény</label><input type="number" id="s${i}bri" value="${bri}" min="0" max="255"></div><div><label>↔</label><input type="checkbox" id="s${i}rev" ${rev?"checked":""}></div></div>`;
+      h+=`<div class="segRow"><div><label>LED</label><div class="segAddr">${start}–${end}</div></div><div><label>SRC</label><select id="s${i}src" onchange="updateMapperPreview()">${names.map((n,j)=>`<option value="${j}" ${(seg.source??0)===j?"selected":""}>${n}</option>`).join("")}</select></div><div><label>Fény</label><input type="number" id="s${i}bri" value="${bri}" min="0" max="255"></div><div><label>↔</label><input type="checkbox" id="s${i}rev" ${rev?"checked":""}></div></div>`;
     }
   }
   el.innerHTML=h;
 }
 function collectSegs(){
   const o=[];
-  for(let i=0;i<Math.min(12,mapperMaxSegments);i++){
-    const count=+($("s"+i+"co")?.value||0);
-    if(count<=0)continue; // üres UI slot nem kerül POST-ba: firmware mapperValid() szerint a count=0 érvénytelen
-    o.push({start:+($("s"+i+"st")?.value||0),count,source:+($("s"+i+"src")?.value||0),brightness:+($("s"+i+"bri")?.value||255),reverse:$("s"+i+"rev")?.checked||false});
+  for(let i=0;i<FIXED_MAPPER_SEGMENTS;i++){
+    o.push({
+      start:i*FIXED_MAPPER_LEDS,
+      count:FIXED_MAPPER_LEDS,
+      source:+($("s"+i+"src")?.value||0),
+      brightness:+($("s"+i+"bri")?.value||255),
+      reverse:$("s"+i+"rev")?.checked||false
+    });
   }
   return o;
 }

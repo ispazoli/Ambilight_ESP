@@ -36,8 +36,8 @@ if 'static const char AMBILIGHT_CC_HTML[] PROGMEM = R"AMB_CC_HTML(' in fw:
 ids = re.findall(r'id="([^"]+)"', html)
 if len(ids) != len(set(ids)):
     fail("duplicate HTML id detected")
-if len(ids) != 105:
-    fail(f"HTML ID count changed: expected 105, got {len(ids)}")
+if len(ids) != 103:
+    fail(f"HTML ID count changed: expected 103, got {len(ids)}")
 
 expected_endpoints = [
     "/api/auth", "/api/capabilities", "/api/config", "/api/ledtest",
@@ -80,6 +80,18 @@ for token in ["SRC_GRADIENT_TOP", "SRC_GRADIENT_RIGHT", "SRC_GRADIENT_BOTTOM", "
     if token not in fw:
         fail(f"firmware mapper token missing: {token}")
 
+# Fixed physical mapper contract: 4 sides × 3 segments × 10 LEDs = 120 LEDs.
+for token in ["MAPPER_SIDE_COUNT", "MAPPER_SEGMENTS_PER_SIDE", "MAPPER_LEDS_PER_SEGMENT"]:
+    if token not in fw:
+        fail(f"fixed mapper constant missing: {token}")
+if "segmentCount=MAX_SEGMENTS" not in fw or "exactly 12 fixed segments required" not in fw:
+    fail("fixed 12-segment mapper contract missing")
+if "fixedSegmentStart(i)" not in fw or "MAPPER_LEDS_PER_SEGMENT" not in fw:
+    fail("fixed 3x10 LED addressing contract missing")
+for token in ["FIXED_MAPPER_SEGMENTS=12", "FIXED_MAPPER_LEDS=10"]:
+    if token not in html:
+        fail(f"browser fixed mapper constant missing: {token}")
+
 # Critical runtime invariants.
 if "loadMapper(true);" not in fw or "saveConfig(true)" not in fw:
     fail("mapper persistence/migration invariant missing")
@@ -89,12 +101,13 @@ if "tvIP=DEFAULT_TV_IP" not in fw or 'prefs.getString("tvip"' not in fw:
 print("  Firmware symbol inventory: present")
 print("  Firmware endpoint inventory: present")
 print("  Mapper source contract: present")
+print("  Fixed mapper: 4 sides × 3 segments × 10 LEDs = 120")
 print("  Persistence invariants: present")
 
 print("PASS: single-source UI parity")
 print("  source/docs: identical")
 print("  source/embedded header: identical")
 print("  firmware: generated header included, duplicate UI absent")
-print("  HTML IDs: 105/105")
+print("  HTML IDs: 103/103")
 print("  Mood effects: 23/23")
 print("  API endpoint contract: present")
