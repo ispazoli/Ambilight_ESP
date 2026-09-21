@@ -577,10 +577,8 @@ static bool mapperSideBypassActive(){
   return tvMasterSyncEnabled && sideCloneEnabled;
 }
 
-static bool mapperSegmentIsClonedSide(const LedSegment& sg){
-  if(!mapperSideBypassActive()) return false;
-  const uint32_t start=sg.start, end=start+sg.count;
-  return (start < 60 && end > 30) || (start < 120 && end > 90);
+static bool mapperLedIsClonedSide(uint16_t idx){
+  return mapperSideBypassActive() && ((idx>=30 && idx<60) || (idx>=90 && idx<120));
 }
 
 static uint16_t fixedSegmentStart(uint8_t index){
@@ -1214,9 +1212,10 @@ void renderZonesToLeds(){
   // is active. In that combined mode only BOTTOM and TOP remain mapper-driven.
   for(uint8_t s=0;s<segmentCount && s<MAX_SEGMENTS;s++){
     LedSegment &sg=segments[s];
-    if(!mapperValid(sg) || mapperSegmentIsClonedSide(sg)) continue;
+    if(!mapperValid(sg)) continue;
     for(uint16_t i=0;i<sg.count;i++){
       uint16_t idx=sg.reverse?(sg.start+sg.count-1-i):(sg.start+i);
+      if(mapperLedIsClonedSide(idx)) continue;
       float t=sg.count>1?(float)i/(float)(sg.count-1):0.0f;
       CRGB col=(sg.source>=SRC_GRADIENT_TOP&&sg.source<=SRC_GRADIENT_LEFT)?gradientSource(sg.source,t):zoneFromSource(sg.source);
       col.nscale8(sg.brightness); leds[idx]=col; written[idx]=true;
