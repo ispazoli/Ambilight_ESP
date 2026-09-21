@@ -512,6 +512,7 @@ void apiState(){
   d["brightness"]=globalBrightness; d["smoothing"]=smoothing; d["blackThreshold"]=blackThreshold;
   d["goodFrames"]=goodFrames; d["badFrames"]=badFrames; d["heap"]=ESP.getFreeHeap(); d["uptime"]=millis()/1000;
   d["segmentCount"]=segmentCount; d["sideCloneEnabled"]=sideCloneEnabled; d["sideCloneBrightness"]=sideCloneBrightness;
+  d["mapperSideBypass"]=mapperSideBypassActive();
   d["moodLinkMode"]=(uint8_t)moodLinkMode; d["tvTopoDetected"]=tvTopoDetected;
   d["dyn_on"]=dynBrightEnabled; d["dyn_min"]=dynBrightMin; d["dyn_max"]=dynBrightMax; d["dyn_resp"]=dynBrightResp;
   d["mood_dyn"]=moodDynEnabled; d["mood_dep"]=moodDynDepth;
@@ -577,6 +578,17 @@ static bool fixedMapperSegment(uint8_t index,const LedSegment& sg){
          sg.start == fixedSegmentStart(index) &&
          sg.count == MAPPER_LEDS_PER_SEGMENT &&
          sg.source < SOURCE_COUNT;
+}
+
+// TV Master Sync + Side Clone combined mode:
+// mapper owns only BOTTOM 0..29 and TOP 60..89.
+// LEFT 30..59 and RIGHT 90..119 are supplied by the clone renderer.
+static bool mapperSideBypassActive(){
+  return tvMasterSyncEnabled && sideCloneEnabled;
+}
+
+static bool mapperLedIsClonedSide(uint16_t idx){
+  return mapperSideBypassActive() && ((idx>=30 && idx<60) || (idx>=90 && idx<120));
 }
 void saveMapper(){
   prefs.begin("cfg",false); prefs.putUChar("segcnt",segmentCount);
@@ -1195,8 +1207,31 @@ void renderZonesToLeds(){
   }
   uint8_t sm=smoothing; for(int i=0;i<4;i++){int k=255-sm;currentZones[i].r+=(targetZones[i].r-currentZones[i].r)*k/255;currentZones[i].g+=(targetZones[i].g-currentZones[i].g)*k/255;currentZones[i].b+=(targetZones[i].b-currentZones[i].b)*k/255;}
   fill_solid(leds,LED_COUNT,CRGB::Black); bool written[LED_COUNT]={false};
-  for(uint8_t s=0;s<segmentCount && s<MAX_SEGMENTS;s++){LedSegment &sg=segments[s];if(!mapperValid(sg))continue;for(uint16_t i=0;i<sg.count;i++){uint16_t idx=sg.reverse?(sg.start+sg.count-1-i):(sg.start+i);float t=sg.count>1?(float)i/(float)(sg.count-1):0.0f;CRGB col=(sg.source>=SRC_GRADIENT_TOP&&sg.source<=SRC_GRADIENT_LEFT)?gradientSource(sg.source,t):zoneFromSource(sg.source);col.nscale8(sg.brightness);leds[idx]=col;written[idx]=true;}}
-  if(sideCloneEnabled){CRGB l=zoneFromSource(SRC_L_AVG);CRGB r=zoneFromSource(SRC_R_AVG);l.nscale8(sideCloneBrightness);r.nscale8(sideCloneBrightness);for(uint16_t i=0;i<cloneLeftCount;i++){uint16_t idx=cloneLeftRev?(cloneLeftStart+cloneLeftCount-1-i):(cloneLeftStart+i);if(idx<LED_COUNT&&!written[idx])leds[idx]=l;}for(uint16_t i=0;i<cloneRightCount;i++){uint16_t idx=cloneRightRev?(cloneRightStart+cloneRightCount-1-i):(cloneRightStart+i);if(idx<LED_COUNT&&!written[idx])leds[idx]=r;}}
+  // Normal mode: mapper drives all physical addresses.
+  // TV Master Sync + Side Clone: mapper drives BOTTOM 0..29 + TOP 60..89 only.
+  for(uint8_t s=0;s<segmentCount && s<MAX_SEGMENTS;s++){
+    LedSegment &sg=segments[s];
+    if(!mapperValid(sg))continue;
+    for(uint16_t i=0;i<sg.count;i++){
+      uint16_t idx=sg.reverse?(sg.start+sg.count-1-i):(sg.start+i);
+      if(mapperLedIsClonedSide(idx))continue;
+      float t=sg.count>1?(float)i/(float)(sg.count-1):0.0f;
+      CRGB col=(sg.source>=SRC_GRADIENT_TOP&&sg.source<=SRC_GRADIENT_LEFT)?gradientSource(sg.source,t):zoneFromSource(sg.source);
+      col.nscale8(sg.brightness);leds[idx]=col;written[idx]=true;
+    }
+  }
+  if(sideCloneEnabled){
+    // In combined mode these physical ranges are fixed and mapper settings
+    // for them are ignored.
+    const uint16_t leftStart=mapperSideBypassActive()?30:cloneLeftStart;
+    const uint16_t leftCount=mapperSideBypassActive()?30:cloneLeftCount;
+    const uint16_t rightStart=mapperSideBypassActive()?90:cloneRightStart;
+    const uint16_t rightCount=mapperSideBypassActive()?30:cloneRightCount;
+    CRGB l=zoneFromSource(SRC_L_AVG);CRGB r=zoneFromSource(SRC_R_AVG);
+    l.nscale8(sideCloneBrightness);r.nscale8(sideCloneBrightness);
+    for(uint16_t i=0;i<leftCount;i++){uint16_t idx=cloneLeftRev?(leftStart+leftCount-1-i):(leftStart+i);if(idx<LED_COUNT&&!written[idx])leds[idx]=l;}
+    for(uint16_t i=0;i<rightCount;i++){uint16_t idx=cloneRightRev?(rightStart+rightCount-1-i):(rightStart+i);if(idx<LED_COUNT&&!written[idx])leds[idx]=r;}
+  }
 }
 
 // [FIX] Effektív fBényerő: globális × (opcionális) TV-master × (opcionális) dinamikus.
