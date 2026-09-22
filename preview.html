@@ -1087,6 +1087,8 @@ $$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
 ["cfgBri","cfgSmooth","cfgBlack","cfgMoodDep","cfgCloneBri"].forEach(id=>$(id)?.addEventListener("input",()=>{const v=$(id).value;const e=$(id+"V");if(e)e.textContent=v}));
 ["left","right"].forEach(s=>["hue","sat","bri","sp","sc","mot","gl","den","tur"].forEach(p=>$("m_"+s+"_"+p)?.addEventListener("input",()=>{const v=$("m_"+s+"_"+p).value;const e=$("m_"+s+"_"+p+"V");if(e)e.textContent=p==="hue"?v+"°":v})));
 
+
+</script>
 <script src="./preview-bootstrap-v3.js?v=20260922-3"></script>
 </body>
 </html>
