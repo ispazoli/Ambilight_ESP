@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#060d18">
+<meta name="theme-color" content="#f5f5f7">
 <meta name="description" content="Ambilight Bridge UI Preview — simulated ESP32-C3 / WS2815 Smart Control Center.">
-<title>Ambilight Bridge · UI Preview</title>
+<title>Ambilight Bridge · Smart Engine Preview</title>
 <style>
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
 AMBILIGHT BRIDGE — MODERNIZED DESIGN SYSTEM v6.0
@@ -418,6 +418,25 @@ input[type=checkbox]{accent-color:#007aff}.segRow{border-color:transparent}.segR
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
+<style id="smart-clean-preview">
+.smartHero{display:flex;align-items:center;gap:18px;margin:8px 2px 22px}
+.smartHeroIcon{width:76px;height:76px;border-radius:22px;display:grid;place-items:center;font-size:38px;background:#fde7ef;color:#e83e78;box-shadow:0 8px 24px rgba(232,62,120,.10)}
+.smartHero h2{font-size:32px;line-height:1.05;letter-spacing:-1.2px;font-weight:760;color:#172033}
+.smartHero p{margin-top:7px;font-size:18px;color:#7b8493}
+.smartFeatureList{display:grid;gap:14px}
+.smartFeature{width:100%;display:flex;align-items:center;gap:18px;text-align:left;padding:20px 22px;border:1px solid #e3e5e9;border-radius:22px;background:#fff;box-shadow:0 7px 22px rgba(20,30,50,.07);cursor:pointer;font:inherit;color:inherit;transition:transform .18s,box-shadow .18s,border-color .18s}
+.smartFeature:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(20,30,50,.10);border-color:#d6d9df}
+.smartFeature:active{transform:scale(.995)}
+.smartFeatureIcon{width:68px;height:68px;flex:0 0 68px;border-radius:18px;display:grid;place-items:center;font-size:30px;font-weight:700}
+.smartPink .smartFeatureIcon{background:#f3eaff;color:#7c45e8}.smartGreen .smartFeatureIcon{background:#dcf7e9;color:#18a65b}.smartBlue .smartFeatureIcon{background:#e3efff;color:#1478e8}
+.smartFeatureText{display:flex;flex-direction:column;min-width:0;gap:2px}.smartFeatureText strong{font-size:21px;line-height:1.2;color:#172033;font-weight:760}.smartFeatureText span{font-size:16px;color:#6f7785}.smartFeatureText small{font-size:14px;color:#858d9a;margin-top:2px}.smartArrow{margin-left:auto;font-size:34px;line-height:1;color:#687383;font-weight:300}
+.smartStatusCard{margin-top:16px;padding:22px;border:1px solid #e3e5e9;border-radius:22px;background:#fff;box-shadow:0 7px 22px rgba(20,30,50,.07)}
+.smartStatusHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.smartStatusTitle{display:flex;align-items:center;gap:12px;font-size:20px;color:#172033}.smartStatusIcon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:#fde7ef;font-size:21px}.smartActive{display:inline-flex;align-items:center;gap:8px;padding:10px 15px;border-radius:999px;background:#e5f8ef;color:#209c5b;font-size:14px;font-weight:750}.smartActive i{width:10px;height:10px;border-radius:50%;background:#19aa61;display:block}
+.smartStats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.smartStat{padding:16px 10px;text-align:center;border:1px solid #e7e9ed;border-radius:16px;background:#fafbfc}.smartStat strong{display:block;font-size:25px;line-height:1.1;color:#172033;font-variant-numeric:tabular-nums}.smartStat span{display:block;margin-top:7px;font-size:13px;color:#7e8795}
+.smartStatusMeta{display:grid;grid-template-columns:1fr 1fr;gap:12px 28px;margin-top:18px;padding-top:18px;border-top:1px solid #e7e9ed;font-size:14px}.smartStatusMeta div{display:flex;justify-content:space-between;gap:12px}.smartStatusMeta span{color:#707987}.smartStatusMeta b{color:#172033}.smartStatusMeta b:first-of-type{color:#1478e8}.smartGood{color:#209c5b!important}
+.smartRuntimePanels{position:absolute;left:-99999px;width:1px;height:1px;overflow:hidden;pointer-events:none}
+@media(max-width:700px){.smartHero{gap:14px;margin-bottom:18px}.smartHeroIcon{width:62px;height:62px;border-radius:18px;font-size:30px}.smartHero h2{font-size:28px}.smartHero p{font-size:15px}.smartFeature{padding:16px;gap:13px;border-radius:19px}.smartFeatureIcon{width:56px;height:56px;flex-basis:56px;border-radius:15px;font-size:25px}.smartFeatureText strong{font-size:18px}.smartFeatureText span{font-size:14px}.smartFeatureText small{font-size:12px}.smartArrow{font-size:30px}.smartStatusCard{padding:16px;border-radius:19px}.smartStatusTitle{font-size:17px}.smartStatusIcon{width:38px;height:38px}.smartActive{padding:8px 11px;font-size:12px}.smartStats{gap:8px}.smartStat{padding:13px 5px}.smartStat strong{font-size:21px}.smartStat span{font-size:11px}.smartStatusMeta{grid-template-columns:1fr;gap:9px;font-size:13px}}
+</style>
 </head><body>
 <script src="./preview-demo-api.js?v=20260922-3"></script>
 <div id="previewBadgeStatic" style="position:fixed;right:14px;bottom:14px;z-index:10000;padding:8px 12px;border-radius:999px;background:#1d1d1f;color:#fff;font:600 10px system-ui;letter-spacing:.5px;box-shadow:0 4px 18px rgba(0,0,0,.18)">UI PREVIEW · ESP32 NÉLKÜL</div>
@@ -435,17 +454,17 @@ input[type=checkbox]{accent-color:#007aff}.segRow{border-color:transparent}.segR
 </header>
 <!-- ═══════════════ NAVIGATION ═══════════════ -->
 <nav class="nav" id="mainNav">
-  <button class="navBtn active" data-page="dash">🏠 Home</button>
+  <button class="navBtn" data-page="dash">🏠 Home</button>
   <button class="navBtn" data-page="mapper">🗺️ Mapper</button>
   <button class="navBtn" data-page="mood">🎨 Mood Studio</button>
-  <button class="navBtn" data-page="smart">🧠 Smart Engine</button>
+  <button class="navBtn active" data-page="smart">🧠 Smart Engine</button>
   <button class="navBtn" data-page="tv">📡 TV Ambilight</button>
   <button class="navBtn" data-page="settings">⚙️ Settings</button>
   <button class="navBtn" data-page="diag">📊 Diag</button>
 </nav>
 
 <!-- ═══════════════ DASHBOARD ═══════════════ -->
-<section class="page active" id="page-dash">
+<section class="page" id="page-dash">
   <div class="g4" id="dashStats"></div>
   <div class="g2" style="margin-top:14px">
     <div class="card"><div class="cardHead"><span class="cardIcon">📺</span><h3>TV <b>Zónák</b> · Valós idejű</h3></div><div class="g2" id="zoneGrid" style="gap:8px"></div></div>
@@ -490,15 +509,58 @@ input[type=checkbox]{accent-color:#007aff}.segRow{border-color:transparent}.segR
   </div>
 </section>
 
-<!-- ═══════════════ SMART ENGINE ═══════════════ -->
-<section class="page" id="page-smart">
-  <div class="g2">
-    <div class="card"><div class="cardHead"><span class="cardIcon">🎬</span><h3>Scene <b>Analyzer</b></h3></div><div id="scenePanel"></div></div>
-    <div class="card"><div class="cardHead"><span class="cardIcon">🎛️</span><h3>Adaptive <b>Controller</b></h3></div><div id="adaptivePanel"></div></div>
+<!-- ═══════════════ SMART ENGINE · CLEAN PREVIEW ═══════════════ -->
+<section class="page active" id="page-smart">
+  <div class="smartHero">
+    <div class="smartHeroIcon">🧠</div>
+    <div>
+      <h2>Smart Engine</h2>
+      <p>Intelligens fényvezérlés a képtartalom alapján</p>
+    </div>
   </div>
-  <div class="g2" style="margin-top:14px">
-    <div class="card"><div class="cardHead"><span class="cardIcon">📐</span><h3>Zóna <b>Analízis</b></h3></div><div class="g2" id="zoneAnalysis" style="gap:8px"></div></div>
-    <div class="card"><div class="cardHead"><span class="cardIcon">🧠</span><h3>Smart Engine <b>Státusz</b></h3></div><div id="engineStatus"></div></div>
+
+  <div class="smartFeatureList">
+    <button class="smartFeature smartPink" type="button" onclick="toast('Scene Analyzer aktív · valós idejű képelemzés')">
+      <span class="smartFeatureIcon">🎬</span>
+      <span class="smartFeatureText"><strong>Scene Analyzer</strong><span>Valós idejű képelemzés és jelenetfelismerés</span><small>Elemzi a képtartalmat és optimalizálja a fényhatásokat</small></span>
+      <span class="smartArrow">›</span>
+    </button>
+    <button class="smartFeature smartGreen" type="button" onclick="toast('Adaptive Controller aktív · dinamikus vezérlés')">
+      <span class="smartFeatureIcon">☷</span>
+      <span class="smartFeatureText"><strong>Adaptive Controller</strong><span>Dinamikus fényerő és színvezérlés</span><small>Automatikusan alkalmazkodik a jelenethez</small></span>
+      <span class="smartArrow">›</span>
+    </button>
+    <button class="smartFeature smartBlue" type="button" onclick="toast('Zóna Analízis aktív · 4 zóna')">
+      <span class="smartFeatureIcon">▦</span>
+      <span class="smartFeatureText"><strong>Zóna Analízis</strong><span>Zónánkénti színelemzés</span><small>Független vezérlés minden LED zónához</small></span>
+      <span class="smartArrow">›</span>
+    </button>
+  </div>
+
+  <div class="smartStatusCard">
+    <div class="smartStatusHead">
+      <div class="smartStatusTitle"><span class="smartStatusIcon">🧠</span><strong>Smart Engine Státusz</strong></div>
+      <span class="smartActive"><i></i> AKTÍV</span>
+    </div>
+    <div class="smartStats">
+      <div class="smartStat"><strong id="smartFps">60</strong><span>FPS</span></div>
+      <div class="smartStat"><strong>4</strong><span>Zóna</span></div>
+      <div class="smartStat"><strong>12 ms</strong><span>Feldolgozás</span></div>
+      <div class="smartStat"><strong>0%</strong><span>CPU</span></div>
+    </div>
+    <div class="smartStatusMeta">
+      <div><span>Mód:</span><b>SMART PRO</b></div>
+      <div><span>WebSocket:</span><b class="smartGood">Demo (aktív)</b></div>
+      <div><span>Pipeline:</span><b class="smartGood" id="smartPipeline">0 accepted</b></div>
+      <div><span>Jelenet:</span><b>Nappali</b></div>
+    </div>
+  </div>
+
+  <div class="smartRuntimePanels" aria-hidden="true">
+    <div id="scenePanel"></div>
+    <div id="adaptivePanel"></div>
+    <div id="zoneAnalysis"></div>
+    <div id="engineStatus"></div>
   </div>
 </section>
 
