@@ -14,88 +14,112 @@ static const char AMBILIGHT_CC_HTML[] PROGMEM = R"AMB_CC_HTML(
 <title>Ambilight Bridge · Smart Control Center</title>
 <style>
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
-AMBILIGHT BRIDGE — MODERNIZED DESIGN SYSTEM v6.0
-Glassmorphic · Dark · Responsive · Refined depth, motion & type
-Minden funkció változatlan — kizárólag a külső megjelenés frissült.
+AMBILIGHT BRIDGE — UI PREVIEW (LIGHT / SOFT-UI) v1.0
+Csak megjelenés. A HTML-szerkezet, osztálynevek, ID-k és a teljes JavaScript
+változatlan — visszaépíthető a működő oldalba (ugyanaz a szerződés).
 ═══════════════════════════════════════════════════════════════════════ */
 :root {
---bg:       #05080f;
---bg2:      #0a1120;
---card:     rgba(15,24,42,0.72);
---card2:    rgba(20,32,54,0.60);
---line:     rgba(130,165,220,0.10);
---line2:    rgba(130,165,220,0.20);
---text:     #eaf1ff;
---soft:     #96abca;
---muted:    #5a6c86;
---cyan:     #34dcff;
---blue:     #4ea2ff;
---purple:   #a684ff;
---green:    #3ef0a8;
---red:      #ff6178;
---yellow:   #ffd257;
---pink:     #f77bbb;
---orange:   #ff9d4d;
---r:        18px;
---r-sm:     11px;
+--bg:       #f2f4f8;
+--bg2:      #f8fafc;
+--card:     rgba(255,255,255,0.72);
+--card-solid:#ffffff;
+--card2:    #f4f6fa;
+--line:     rgba(60,70,90,0.07);
+--line2:    rgba(60,70,90,0.12);
+--text:     #1c1c22;
+--soft:     #545a68;
+--muted:    #949aa8;
+--cyan:     #0aa2c2;
+--blue:     #007aff;
+--purple:   #7c5cff;
+--green:    #30d158;
+--green2:   #28b24a;
+--red:      #ff453a;
+--yellow:   #ff9f0a;
+--pink:     #ff375f;
+--orange:   #ff7a3c;
+--primary:  #007aff;
+--r:        26px;
+--r-sm:     15px;
 --r-pill:   999px;
---shadow:   0 24px 70px rgba(0,0,0,.50), 0 6px 18px rgba(0,0,0,.30);
---shadow-sm:0 6px 22px rgba(0,0,0,.32);
---glass:    blur(26px) saturate(150%);
---grad-accent: linear-gradient(120deg,var(--cyan),var(--blue) 45%,var(--purple));
+--shadow:   0 24px 60px rgba(30,40,70,.13), 0 8px 20px rgba(30,40,70,.07), 0 1px 3px rgba(30,40,70,.05);
+--shadow-sm:0 10px 28px rgba(30,40,70,.06), 0 2px 6px rgba(30,40,70,.04);
+--glass:    blur(30px) saturate(180%);
+--glass-hi: blur(40px) saturate(200%);
+--spring:   cubic-bezier(.34,1.56,.64,1);
+--grad-accent: linear-gradient(120deg,#007aff,#4d9bff 55%,#7c5cff);
 }
-@keyframes bgFloat{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(0,-26px,0)}}
-@keyframes dotPulse{0%,100%{box-shadow:0 0 8px currentColor}50%{box-shadow:0 0 16px currentColor,0 0 32px currentColor}}
+@keyframes dotPulse{0%,100%{box-shadow:0 0 0 0 rgba(48,209,88,.5)}70%{box-shadow:0 0 0 7px rgba(48,209,88,0)}}
+@keyframes cardIn{from{opacity:0;transform:translateY(12px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-10px)}to{opacity:1;transform:translateX(-50%) translateY(6px)}}
-@keyframes cardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-body{min-height:100vh;min-height:100dvh;background:var(--bg);color:var(--text);font-family:'Inter','Inter Variable',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden;letter-spacing:.1px}
-body::before{content:"";position:fixed;inset:-10% -10% -10% -10%;pointer-events:none;z-index:-1;animation:bgFloat 22s ease-in-out infinite;
-background:radial-gradient(900px 560px at 6% -6%,rgba(52,220,255,.13),transparent 66%),
-radial-gradient(820px 520px at 96% 2%,rgba(166,132,255,.11),transparent 63%),
-radial-gradient(760px 500px at 50% 112%,rgba(62,240,168,.07),transparent 70%),
-radial-gradient(600px 400px at 80% 80%,rgba(78,162,255,.06),transparent 72%)}
-body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.4;
-background-image:radial-gradient(rgba(130,165,220,.045) 1px,transparent 1px);background-size:26px 26px}
-::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(52,220,255,.35),rgba(166,132,255,.30));border-radius:10px}
-::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,rgba(52,220,255,.55),rgba(166,132,255,.5))}
-/* ── App Shell ──────────────────────────────── */
-.app{max-width:1460px;margin:0 auto;padding:22px 24px 48px}
+body{min-height:100vh;min-height:100dvh;background:var(--bg);color:var(--text);
+font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','SF Pro Icons','Helvetica Neue',Inter,ui-sans-serif,system-ui,'Segoe UI',Roboto,Arial,sans-serif;
+font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;font-feature-settings:'kern' 1,'liga' 1,'calt' 1;overflow-x:hidden;letter-spacing:-.011em}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
+background:radial-gradient(900px 560px at 8% -8%,rgba(0,122,255,.10),transparent 62%),
+radial-gradient(820px 520px at 96% 0%,rgba(124,92,255,.09),transparent 60%),
+radial-gradient(760px 520px at 50% 112%,rgba(20,184,119,.06),transparent 66%)}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(28,52,94,.16);border-radius:10px}
+::-webkit-scrollbar-thumb:hover{background:rgba(28,52,94,.28)}
+/* ── App Shell (alul hely a dokknak) ───────────────── */
+.app{max-width:1180px;margin:0 auto;padding:20px 20px 40px}
 /* ── Top Bar ──────────────────────────────── */
-.topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;
-padding:18px 24px;margin-bottom:20px;position:relative;overflow:hidden;
-background:var(--card);border:1px solid var(--line);border-radius:var(--r);
-box-shadow:var(--shadow);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass)}
-.topbar::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,rgba(52,220,255,.5),rgba(166,132,255,.4),transparent)}
-.brand{display:flex;align-items:center;gap:15px}
-.brandIcon{font-size:32px;line-height:1;filter:drop-shadow(0 0 18px rgba(52,220,255,.45));animation:dotPulse 4s ease-in-out infinite;color:var(--cyan)}
-.brand h1{font-size:20px;font-weight:850;letter-spacing:-.3px;background:linear-gradient(90deg,var(--text),#c4d6f5);-webkit-background-clip:text;background-clip:text}
-.brand h1 em{font-style:normal;font-weight:800;background:var(--grad-accent);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.brand p{font-size:10px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600}
-.statusBar{display:flex;align-items:center;gap:12px}
-.statusPill{display:flex;align-items:center;gap:8px;padding:8px 16px;
-border-radius:var(--r-pill);border:1px solid var(--line2);background:rgba(10,18,32,.6);
-font-size:11px;font-weight:600;color:var(--soft);letter-spacing:.3px;transition:all .25s;backdrop-filter:blur(8px)}
-.statusPill:hover{border-color:rgba(52,220,255,.3);color:var(--text)}
-.statusDot{width:9px;height:9px;border-radius:50%;background:var(--red);color:var(--red);
-box-shadow:0 0 8px currentColor;transition:all .4s}
-.statusDot.on{background:var(--green);color:var(--green);animation:dotPulse 2.4s ease-in-out infinite}
-.statusDot.ws{background:var(--cyan);color:var(--cyan);animation:dotPulse 2.4s ease-in-out infinite}
-.fpsChip{padding:6px 13px;border-radius:var(--r-pill);background:rgba(52,220,255,.09);
-border:1px solid rgba(52,220,255,.20);font-size:10px;font-weight:700;color:var(--cyan);letter-spacing:.6px}
-/* ── Navigation ───────────────────────────── */
-.nav{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap;padding:6px;border-radius:var(--r-pill);
-background:rgba(12,20,36,.5);border:1px solid var(--line);backdrop-filter:blur(10px);width:fit-content;max-width:100%}
-.navBtn{padding:11px 20px;border-radius:var(--r-pill);border:1px solid transparent;
-background:transparent;color:var(--soft);font-size:12px;font-weight:650;
-cursor:pointer;transition:all .25s cubic-bezier(.4,0,.2,1);letter-spacing:.4px;white-space:nowrap}
-.navBtn:hover{color:var(--text);background:rgba(24,38,60,.7)}
-.navBtn.active{background:var(--grad-accent);border-color:transparent;color:#04121f;font-weight:750;box-shadow:0 4px 16px rgba(52,220,255,.30)}
-.navBtn .badge{font-size:9px;background:rgba(62,240,168,.18);color:var(--green);padding:2px 7px;border-radius:var(--r-pill);margin-left:5px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;
+padding:16px 20px;margin-bottom:18px;position:sticky;top:12px;z-index:50;
+background:rgba(255,255,255,.62);border:1px solid var(--line);border-radius:var(--r);
+box-shadow:var(--shadow-sm),inset 0 1px 0 rgba(255,255,255,.6);backdrop-filter:var(--glass-hi);-webkit-backdrop-filter:var(--glass-hi)}
+.brand{display:flex;align-items:center;gap:14px}
+.brandIcon{font-size:30px;line-height:1;width:52px;height:52px;display:grid;place-items:center;border-radius:16px;
+background:linear-gradient(140deg,rgba(0,122,255,.16),rgba(124,92,255,.16));color:var(--primary);
+box-shadow:inset 0 0 0 1px rgba(0,122,255,.12)}
+.brand h1{font-size:19px;font-weight:600;letter-spacing:-.021em;color:var(--text)}
+.brand h1 em{font-style:normal;font-weight:590;background:var(--grad-accent);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.brand p{font-size:10px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.09em;font-weight:590}
+.statusBar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.statusPill{display:flex;align-items:center;gap:7px;padding:8px 14px;
+border-radius:var(--r-pill);border:1px solid var(--line);background:#fff;
+font-size:11px;font-weight:560;color:var(--soft);letter-spacing:.2px;box-shadow:var(--shadow-sm)}
+.statusDot{width:9px;height:9px;border-radius:50%;background:var(--red);transition:all .4s}
+.statusDot.on{background:var(--green);animation:dotPulse 2.2s ease-out infinite}
+.statusDot.ws{background:var(--primary);animation:dotPulse 2.2s ease-out infinite}
+.fpsChip{padding:7px 13px;border-radius:var(--r-pill);background:rgba(0,122,255,.10);
+border:1px solid rgba(0,122,255,.18);font-size:10px;font-weight:590;color:var(--primary);letter-spacing:.5px}
+/* ── Navigation → bal oldali függőleges sáv (nagyobb) ───────── */
+.nav{position:fixed;left:20px;top:50%;transform:translateY(-50%);z-index:60;width:212px;
+display:flex;flex-direction:column;gap:6px;padding:12px;max-height:calc(100vh - 40px);overflow-y:auto;
+background:rgba(255,255,255,.6);border:1px solid var(--line);border-radius:28px;
+box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.65);backdrop-filter:var(--glass-hi);-webkit-backdrop-filter:var(--glass-hi)}
+.nav::-webkit-scrollbar{display:none}
+.navBtn{padding:13px 16px;border-radius:16px;border:1px solid transparent;
+display:flex;align-items:center;gap:12px;width:100%;justify-content:flex-start;
+background:transparent;color:var(--soft);font-size:13.5px;font-weight:560;
+cursor:pointer;transition:all .3s var(--spring);letter-spacing:-.006em;white-space:nowrap}
+.navBtn:hover{color:var(--text);background:rgba(28,52,94,.05)}
+.navBtn:active{transform:scale(.93)}
+.navBtn.active{background:rgba(0,122,255,.12);border-color:rgba(0,122,255,.2);color:var(--primary);font-weight:590}
+/* Reszponzív: PC / tablet = bal sáv, mobil = alsó dokk */
+@media(min-width:769px){body{padding-left:248px}}
+@media(min-width:769px) and (max-width:1024px){
+.nav{width:190px;left:16px}
+.navBtn{font-size:12.5px;padding:12px 14px;gap:10px}
+body{padding-left:222px}
+}
+@media(max-width:768px){
+.nav{left:50%;top:auto;bottom:16px;transform:translateX(-50%);width:auto;flex-direction:row;gap:4px;padding:8px;
+max-height:none;max-width:calc(100vw - 24px);overflow-x:auto;overflow-y:visible;border-radius:var(--r-pill)}
+.navBtn{width:auto;justify-content:center;border-radius:var(--r-pill);padding:10px 14px;font-size:12px;gap:7px}
+body{padding-left:0}
+.app{padding-bottom:114px}
+}
+.navIco{width:20px;height:20px;flex-shrink:0;stroke:currentColor;fill:none;opacity:.9}
+.navBtn.active .navIco{opacity:1}
+.brandIco{width:26px;height:26px;stroke:var(--primary);fill:none}
+.navBtn .badge{font-size:9px;background:rgba(20,184,119,.16);color:var(--green);padding:2px 7px;border-radius:var(--r-pill);margin-left:5px}
 /* ── Page Sections ───────────────────────── */
-.page{display:none}.page.active{display:block;animation:cardIn .4s ease both}
+.page{display:none}.page.active{display:block;animation:cardIn .5s var(--spring) both}
 /* ── Grid System ────────────────────────── */
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
@@ -104,229 +128,141 @@ cursor:pointer;transition:all .25s cubic-bezier(.4,0,.2,1);letter-spacing:.4px;w
 .c6{grid-column:span 6}.c4{grid-column:span 4}.c3{grid-column:span 3}.c8{grid-column:span 8}.c12{grid-column:span 12}
 /* ── Cards ──────────────────────────────── */
 .card{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--r);
-padding:20px 22px;box-shadow:var(--shadow-sm);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);
-transition:transform .3s cubic-bezier(.4,0,.2,1),border-color .3s,box-shadow .3s;animation:cardIn .5s ease both;overflow:hidden}
-.card::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;
-background:linear-gradient(160deg,rgba(130,165,220,.18),transparent 40%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.7}
-.card:hover{transform:translateY(-3px);border-color:var(--line2);box-shadow:var(--shadow)}
-.cardHead{display:flex;align-items:center;gap:11px;margin-bottom:16px}
-.cardHead h3{font-size:12px;font-weight:750;color:var(--soft);text-transform:uppercase;letter-spacing:.7px}
-.cardHead h3 b{color:var(--text);font-size:15px;text-transform:none;letter-spacing:-.1px}
-.cardHead .cardIcon{font-size:19px;opacity:.85;filter:drop-shadow(0 0 8px rgba(52,220,255,.2))}
+padding:23px 25px;box-shadow:var(--shadow-sm),inset 0 1px 0 rgba(255,255,255,.5);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);
+transition:transform .4s var(--spring),box-shadow .4s,border-color .3s;animation:cardIn .55s var(--spring) both}
+.card:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:var(--line2)}
+.cardHead{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.cardHead h3{font-size:11.5px;font-weight:590;color:var(--soft);text-transform:uppercase;letter-spacing:.05em}
+.cardHead h3 b{color:var(--text);font-size:16px;text-transform:none;letter-spacing:-.014em;font-weight:600}
+.cardHead .cardIcon{font-size:20px;width:44px;height:44px;display:grid;place-items:center;border-radius:13px;
+background:linear-gradient(140deg,rgba(0,122,255,.14),rgba(124,92,255,.12));box-shadow:inset 0 0 0 1px rgba(0,122,255,.10)}
 /* ── Stats Grid ──────────────────────────────────────────────── */
-.statBox{position:relative;padding:17px 18px;border-radius:var(--r-sm);border:1px solid var(--line);
-background:var(--card2);text-align:center;transition:transform .25s,border-color .25s,background .25s;overflow:hidden}
-.statBox::after{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:var(--grad-accent);opacity:0;transition:opacity .25s}
-.statBox:hover{transform:translateY(-2px);border-color:var(--line2);background:rgba(24,38,62,.7)}
-.statBox:hover::after{opacity:.8}
-.statVal{font-size:25px;font-weight:850;letter-spacing:-.6px;font-variant-numeric:tabular-nums}
-.statLabel{font-size:10px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.8px;font-weight:600}
-.good{color:var(--green)}.warn{color:var(--yellow)}.bad{color:var(--red)}.info{color:var(--cyan)}.accent{color:var(--purple)}
+.statBox{position:relative;padding:17px 16px;border-radius:var(--r-sm);border:1px solid var(--line);
+background:var(--card-solid);text-align:center;transition:transform .35s var(--spring),box-shadow .3s;box-shadow:var(--shadow-sm)}
+.statBox:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.statVal{font-size:27px;font-weight:600;letter-spacing:-.026em;font-variant-numeric:tabular-nums;color:var(--text)}
+.statLabel{font-size:10px;color:var(--muted);margin-top:5px;text-transform:uppercase;letter-spacing:.06em;font-weight:560}
+.good{color:var(--green)}.warn{color:var(--yellow)}.bad{color:var(--red)}.info{color:var(--primary)}.accent{color:var(--purple)}
 /* ── Zone Cards ──────────────────────────────────────────────── */
-.zoneCard{display:flex;align-items:center;gap:13px;padding:13px 16px;
-border-radius:var(--r-sm);border:1px solid var(--line);background:var(--card2);transition:border-color .2s,transform .2s}
-.zoneCard:hover{border-color:var(--line2);transform:translateY(-1px)}
-.zoneSwatch{width:44px;height:44px;border-radius:var(--r-sm);border:1px solid rgba(255,255,255,.10);
-transition:background .12s;box-shadow:0 0 16px rgba(0,0,0,.35) inset,0 2px 8px rgba(0,0,0,.25);flex-shrink:0}
+.zoneCard{display:flex;align-items:center;gap:13px;padding:13px 15px;
+border-radius:var(--r-sm);border:1px solid var(--line);background:#fff;transition:transform .2s,box-shadow .2s;box-shadow:var(--shadow-sm)}
+.zoneCard:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+.zoneSwatch{width:44px;height:44px;border-radius:13px;border:1px solid rgba(28,52,94,.12);
+transition:background .12s;box-shadow:0 3px 10px rgba(28,52,94,.14);flex-shrink:0}
 .zoneData{font-size:11px;color:var(--soft);line-height:1.55}
-.zoneData strong{display:block;font-size:14px;color:var(--text);font-weight:750;letter-spacing:.2px}
+.zoneData strong{display:block;font-size:14px;color:var(--text);font-weight:600;letter-spacing:-.006em}
 /* ── LED Strip ───────────────────────────────────────────────── */
-.ledStrip{display:flex;gap:1px;height:28px;border-radius:9px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.3) inset,0 0 0 1px var(--line)}
-.ledStrip .px{flex:1;min-width:2px;transition:background .08s;border-radius:1px}
-.ledLegend{display:flex;gap:15px;margin-top:10px;font-size:9px;color:var(--muted);flex-wrap:wrap}
+.ledStrip{display:flex;gap:1px;height:28px;border-radius:10px;overflow:hidden;box-shadow:inset 0 0 0 1px var(--line),0 3px 10px rgba(28,52,94,.08)}
+.ledStrip .px{flex:1;min-width:2px;transition:background .08s}
+.ledLegend{display:flex;gap:15px;margin-top:11px;font-size:9px;color:var(--muted);flex-wrap:wrap;font-weight:600}
 .ledLegend span{display:flex;align-items:center;gap:5px}
-.ledLegend i{display:inline-block;width:9px;height:9px;border-radius:3px;box-shadow:0 0 6px currentColor}
+.ledLegend i{display:inline-block;width:9px;height:9px;border-radius:3px}
 /* ── Forms ───────────────────────────────────────────────────── */
-label{display:block;font-size:10px;color:var(--muted);margin-bottom:4px;font-weight:650;text-transform:uppercase;letter-spacing:.7px}
-input,select{width:100%;padding:11px 13px;border-radius:var(--r-sm);border:1px solid var(--line);background:rgba(9,16,28,.75);color:var(--text);font-size:13px;outline:none;font-family:inherit;transition:border .2s,box-shadow .2s,background .2s}
+label{display:block;font-size:10px;color:var(--muted);margin-bottom:4px;font-weight:560;text-transform:uppercase;letter-spacing:.6px}
+input,select{width:100%;padding:11px 13px;border-radius:var(--r-sm);border:1px solid var(--line);background:#fff;color:var(--text);font-size:13px;outline:none;font-family:inherit;transition:border .2s,box-shadow .2s}
 input:hover,select:hover{border-color:var(--line2)}
-input:focus,select:focus{border-color:rgba(52,220,255,.55);background:rgba(9,16,28,.9);box-shadow:0 0 0 3px rgba(52,220,255,.10)}
-input[type=range]{padding:0;height:6px;-webkit-appearance:none;appearance:none;background:linear-gradient(90deg,rgba(52,220,255,.35),var(--line));border-radius:4px;cursor:pointer;border:none}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#eafcff,var(--cyan));cursor:pointer;border:2px solid var(--bg);box-shadow:0 0 12px rgba(52,220,255,.5),0 2px 6px rgba(0,0,0,.4);transition:transform .15s}
+input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,122,255,.14)}
+input[type=range]{padding:0;height:6px;-webkit-appearance:none;appearance:none;background:#dfe6f1;border-radius:4px;cursor:pointer;border:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;cursor:pointer;border:none;box-shadow:0 0 0 2px var(--primary),0 2px 6px rgba(28,52,94,.25);transition:transform .15s}
 input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.15)}
-input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--cyan);cursor:pointer;border:2px solid var(--bg);box-shadow:0 0 12px rgba(52,220,255,.5)}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;cursor:pointer;border:2px solid var(--primary)}
 input[type=color]{padding:3px;height:40px;cursor:pointer;border-radius:var(--r-sm)}
-input[type=checkbox]{width:17px;height:17px;accent-color:var(--cyan);cursor:pointer;flex-shrink:0}
+input[type=checkbox]{width:17px;height:17px;accent-color:var(--primary);cursor:pointer;flex-shrink:0}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 .frow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
 .frow4{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
 .checkRow{display:flex;align-items:center;gap:9px;padding:6px 0}
-.checkRow label{margin:0;font-size:12px;color:var(--text);text-transform:none;letter-spacing:0;font-weight:550}
+.checkRow label{margin:0;font-size:12px;color:var(--text);text-transform:none;letter-spacing:0;font-weight:600}
 .rangeRow{display:flex;align-items:center;gap:11px}
-.rangeRow input[type=range]{flex:1}.rangeRow span{font-size:11px;color:var(--soft);min-width:34px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.rangeRow input[type=range]{flex:1}.rangeRow span{font-size:11px;color:var(--soft);min-width:52px;text-align:right;font-weight:590;font-variant-numeric:tabular-nums}
+.unitField{display:flex;align-items:center;gap:6px}.unitField input{flex:1;width:auto;min-width:0}.unitSuffix{flex:0 0 auto;font-size:11px;font-weight:650;color:var(--soft);min-width:22px}.unitHint{font-size:9px;color:var(--muted);line-height:1.4;margin-top:5px}.sectionNote{padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.42);font-size:10px;color:var(--muted);line-height:1.5;margin-top:10px}
+input:disabled{opacity:.55;cursor:not-allowed}
 /* ── Buttons ─────────────────────────────────────────────────── */
-.btn{display:inline-flex;align-items:center;gap:7px;padding:11px 23px;border-radius:var(--r-pill);position:relative;overflow:hidden;
-border:1px solid rgba(52,220,255,.26);background:rgba(52,220,255,.08);color:var(--cyan);
-font-size:12px;font-weight:700;cursor:pointer;transition:all .22s cubic-bezier(.4,0,.2,1);letter-spacing:.3px}
-.btn:hover{background:rgba(52,220,255,.16);border-color:rgba(52,220,255,.5);transform:translateY(-2px);box-shadow:0 6px 18px rgba(52,220,255,.18)}
-.btn:active{transform:translateY(0)}
-.btnSave{background:rgba(62,240,168,.11);border-color:rgba(62,240,168,.28);color:var(--green)}
-.btnSave:hover{background:rgba(62,240,168,.19);border-color:rgba(62,240,168,.5);box-shadow:0 6px 18px rgba(62,240,168,.18)}
-.btnDanger{background:rgba(255,97,120,.09);border-color:rgba(255,97,120,.24);color:var(--red)}
-.btnDanger:hover{background:rgba(255,97,120,.17);border-color:rgba(255,97,120,.5);box-shadow:0 6px 18px rgba(255,97,120,.18)}
-.btnDim{background:rgba(130,165,220,.06);border-color:var(--line);color:var(--soft)}
-.btnDim:hover{background:rgba(130,165,220,.12);color:var(--text);border-color:var(--line2);box-shadow:0 6px 16px rgba(0,0,0,.25)}
-.btnSm{padding:8px 15px;font-size:10px}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border-radius:var(--r-pill);
+border:1px solid rgba(0,122,255,.22);background:rgba(0,122,255,.10);color:var(--primary);
+font-size:12px;font-weight:590;cursor:pointer;transition:all .3s var(--spring);letter-spacing:.2px}
+.btn:hover{background:rgba(0,122,255,.18);border-color:rgba(0,122,255,.4);transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,122,255,.18)}
+.btn:active{transform:scale(.95)}
+.btnSave{background:rgba(20,184,119,.12);border-color:rgba(20,184,119,.26);color:var(--green)}
+.btnSave:hover{background:rgba(20,184,119,.2);border-color:rgba(20,184,119,.45);box-shadow:0 8px 20px rgba(20,184,119,.18)}
+.btnDanger{background:rgba(240,69,90,.10);border-color:rgba(240,69,90,.24);color:var(--red)}
+.btnDanger:hover{background:rgba(240,69,90,.18);border-color:rgba(240,69,90,.45);box-shadow:0 8px 20px rgba(240,69,90,.16)}
+.btnDim{background:#fff;border-color:var(--line);color:var(--soft);box-shadow:var(--shadow-sm)}
+.btnDim:hover{background:#f4f7fb;color:var(--text);border-color:var(--line2)}
+.btnSm{padding:8px 14px;font-size:10px}
 .btnRow{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
 /* ── Segment Row ─────────────────────────────────────────────── */
 .segBlock{margin-bottom:10px}
-.segSide{font-size:10px;color:var(--cyan);font-weight:800;text-transform:uppercase;letter-spacing:1.4px;
-padding:8px 0 9px;border-bottom:1px solid var(--line2);margin-bottom:9px;display:flex;align-items:center;gap:8px}
-.segSide::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.segSide{font-size:10px;color:var(--primary);font-weight:600;text-transform:uppercase;letter-spacing:.08em;
+padding:9px 0;border-bottom:1px solid var(--line);margin-bottom:9px;display:flex;align-items:center;gap:8px}
+.segSide::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--primary)}
 .segRow{display:grid;grid-template-columns:72px minmax(0,1fr) 48px 34px;gap:6px;align-items:end;
-padding:8px 11px;border-radius:var(--r-sm);border:1px solid transparent;transition:all .2s}
-.segRow:hover{border-color:var(--line2);background:rgba(20,34,56,.5)}
+padding:9px 11px;border-radius:var(--r-sm);border:1px solid transparent;transition:all .2s}
+.segRow:hover{border-color:var(--line);background:#fff;box-shadow:var(--shadow-sm)}
 .segRow label{font-size:8px;margin-bottom:2px}
 .segRow input,.segRow select{padding:6px 7px;font-size:11px;min-width:0;width:100%}
 .segRow select{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .segRow input[type=checkbox]{width:15px;height:15px;margin-bottom:5px}
-.segAddr{padding:6px 7px;border:1px solid var(--line);border-radius:var(--r-sm);background:rgba(9,16,28,.5);color:var(--soft);font-size:11px;font-variant-numeric:tabular-nums;text-align:center;white-space:nowrap;font-weight:600}
-/* Fixed physical addressing: 4 sides × 30 LEDs, 3 × 10 LED segments per side. */
+.segAddr{padding:6px 7px;border:1px solid var(--line);border-radius:var(--r-sm);background:#f3f6fb;color:var(--soft);font-size:11px;font-variant-numeric:tabular-nums;text-align:center;white-space:nowrap;font-weight:560}
 /* ── Smart Engine Panels ─────────────────────────────────────── */
-.meterLabel{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:4px;font-weight:600;letter-spacing:.3px}
-.meterBar{height:7px;border-radius:4px;background:rgba(9,16,28,.7);overflow:hidden;margin-bottom:11px;box-shadow:0 1px 3px rgba(0,0,0,.3) inset}
-.meterFill{height:100%;border-radius:4px;transition:width .35s cubic-bezier(.4,0,.2,1);box-shadow:0 0 10px rgba(0,0,0,.2)}
-.meterFill.brightness{background:linear-gradient(90deg,var(--blue),var(--cyan))}
+.meterLabel{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:5px;font-weight:560;letter-spacing:.3px}
+.meterLabel span:last-child{color:var(--text);font-weight:590;font-variant-numeric:tabular-nums}
+.meterBar{height:8px;border-radius:5px;background:#e7edf6;overflow:hidden;margin-bottom:12px}
+.meterFill{height:100%;border-radius:5px;transition:width .35s cubic-bezier(.4,0,.2,1)}
+.meterFill.brightness{background:linear-gradient(90deg,var(--blue),#5b9bff)}
 .meterFill.saturation{background:linear-gradient(90deg,var(--purple),var(--pink))}
 .meterFill.motion{background:linear-gradient(90deg,var(--orange),var(--yellow))}
-.meterFill.energy{background:linear-gradient(90deg,var(--green),var(--cyan))}
+.meterFill.energy{background:linear-gradient(90deg,var(--green),#4fd39b)}
 .meterFill.speed{background:linear-gradient(90deg,var(--yellow),var(--green))}
 /* ── Scene Type Badge ────────────────────────────────────────── */
-.sceneBadge{display:inline-block;padding:6px 13px;border-radius:var(--r-pill);font-size:10px;font-weight:750;letter-spacing:.5px}
-.sceneBadge.dark{background:rgba(130,165,220,.07);color:var(--muted);border:1px solid var(--line)}
-.sceneBadge.normal{background:rgba(78,162,255,.10);color:var(--blue);border:1px solid rgba(78,162,255,.24)}
-.sceneBadge.bright{background:rgba(255,210,87,.10);color:var(--yellow);border:1px solid rgba(255,210,87,.24)}
-.sceneBadge.action{background:rgba(255,97,120,.10);color:var(--red);border:1px solid rgba(255,97,120,.24)}
-.sceneBadge.calm{background:rgba(62,240,168,.10);color:var(--green);border:1px solid rgba(62,240,168,.24)}
+.sceneBadge{display:inline-block;padding:6px 13px;border-radius:var(--r-pill);font-size:10px;font-weight:590;letter-spacing:.5px}
+.sceneBadge.dark{background:rgba(138,151,171,.16);color:var(--soft);border:1px solid var(--line)}
+.sceneBadge.normal{background:rgba(0,122,255,.12);color:var(--primary);border:1px solid rgba(0,122,255,.22)}
+.sceneBadge.bright{background:rgba(234,161,0,.14);color:var(--yellow);border:1px solid rgba(234,161,0,.26)}
+.sceneBadge.action{background:rgba(240,69,90,.12);color:var(--red);border:1px solid rgba(240,69,90,.24)}
+.sceneBadge.calm{background:rgba(20,184,119,.12);color:var(--green);border:1px solid rgba(20,184,119,.24)}
 /* ── Toast ───────────────────────────────────────────────────── */
-.toast{position:fixed;top:24px;left:50%;transform:translateX(-50%);padding:12px 26px;
-border-radius:var(--r-pill);background:var(--card);border:1px solid var(--line2);
-color:var(--text);font-size:12px;font-weight:700;z-index:9999;opacity:0;pointer-events:none;
-transition:opacity .3s,transform .3s;box-shadow:var(--shadow);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);
-letter-spacing:.3px}
+.toast{position:fixed;top:22px;left:50%;transform:translateX(-50%);padding:12px 24px;
+border-radius:var(--r-pill);background:#fff;border:1px solid var(--line2);
+color:var(--text);font-size:12px;font-weight:590;z-index:9999;opacity:0;pointer-events:none;
+transition:opacity .3s,transform .3s;box-shadow:var(--shadow);letter-spacing:.2px}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(6px);animation:toastIn .35s cubic-bezier(.4,0,.2,1)}
-.toast.ok{border-color:rgba(62,240,168,.45);color:var(--green);box-shadow:0 12px 40px rgba(62,240,168,.15)}
-.toast.err{border-color:rgba(255,97,120,.45);color:var(--red);box-shadow:0 12px 40px rgba(255,97,120,.15)}
+.toast.ok{border-color:rgba(20,184,119,.4);color:var(--green)}
+.toast.err{border-color:rgba(240,69,90,.4);color:var(--red)}
 /* ── Modal ───────────────────────────────────────────────────── */
-.modalOverlay{position:fixed;inset:0;background:rgba(3,7,16,.78);display:flex;
-align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
-.modalBox{position:relative;background:var(--card);border:1px solid var(--line2);border-radius:var(--r);
-padding:30px 32px;max-width:460px;width:calc(100% - 36px);box-shadow:0 40px 100px rgba(0,0,0,.65);animation:cardIn .4s ease both;overflow:hidden}
-.modalBox::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--grad-accent)}
-.modalBox h2{font-size:19px;margin-bottom:8px;font-weight:800;letter-spacing:-.2px}
+.modalOverlay{position:fixed;inset:0;background:rgba(28,34,52,.28);display:flex;
+align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%)}
+.modalBox{position:relative;background:rgba(255,255,255,.78);border:1px solid var(--line2);border-radius:var(--r);
+padding:30px 32px;max-width:460px;width:calc(100% - 36px);box-shadow:0 40px 90px rgba(16,32,58,.28),inset 0 1px 0 rgba(255,255,255,.6);backdrop-filter:var(--glass-hi);-webkit-backdrop-filter:var(--glass-hi);animation:cardIn .5s var(--spring) both;overflow:hidden}
+.modalBox::before{content:"";position:absolute;inset:0 0 auto 0;height:4px;background:var(--grad-accent)}
+.modalBox h2{font-size:20px;margin-bottom:8px;font-weight:600;letter-spacing:-.021em}
 .modalBox p{font-size:12px;color:var(--soft);margin-bottom:18px;line-height:1.6}
-.modalBox p code{background:rgba(52,220,255,.1);color:var(--cyan);padding:2px 6px;border-radius:5px;font-size:11px}
+.modalBox p code{background:rgba(0,122,255,.12);color:var(--primary);padding:2px 6px;border-radius:5px;font-size:11px}
 .modalBox input{margin-bottom:12px}
 /* ── Progress Bar ────────────────────────────────────────────── */
 .progressWrap{margin-top:12px;display:none}
-.progressBar{height:8px;border-radius:5px;background:rgba(9,16,28,.7);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.3) inset}
-.progressFill{height:100%;width:0;background:linear-gradient(90deg,var(--green),var(--cyan));border-radius:5px;transition:width .3s;box-shadow:0 0 12px rgba(62,240,168,.4)}
-.progressText{font-size:10px;color:var(--soft);margin-top:5px;font-weight:600}
+.progressBar{height:8px;border-radius:5px;background:#e7edf6;overflow:hidden}
+.progressFill{height:100%;width:0;background:linear-gradient(90deg,var(--green),#4fd39b);border-radius:5px;transition:width .3s}
+.progressText{font-size:10px;color:var(--soft);margin-top:5px;font-weight:560}
 /* ── Palette Grid ────────────────────────────────────────────── */
 .paletteGrid{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-top:7px}
-.paletteSwatch{height:24px;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:all .15s}
+.paletteSwatch{height:24px;border-radius:7px;cursor:pointer;border:2px solid transparent;transition:all .15s;box-shadow:var(--shadow-sm)}
 .paletteSwatch:hover{transform:scale(1.14);border-color:var(--text)}
-.paletteSwatch.sel{border-color:var(--cyan);box-shadow:0 0 12px rgba(52,220,255,.45)}
+.paletteSwatch.sel{border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,122,255,.18)}
+/* ── Engine status (kép szerinti rács) ───────────────────────── */
+.engGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden;background:#fff;box-shadow:var(--shadow-sm)}
+.engGrid>div{padding:14px 10px;text-align:center;border-right:1px solid var(--line)}
+.engGrid>div:last-child{border-right:none}
+.engGrid .v{font-size:23px;font-weight:600;letter-spacing:-.024em;color:var(--text);font-variant-numeric:tabular-nums}
+.engGrid .l{font-size:10px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.05em;font-weight:560}
+.engRows{margin-top:12px;display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
+.engRows .r{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:#fff;font-size:12px}
+.engRows .r span{color:var(--muted);font-weight:560}
+.engRows .r b{color:var(--text);font-weight:590}
 /* ── Responsive ──────────────────────────────────────────────── */
 @media(max-width:1100px){.g12{grid-template-columns:1fr}.c6,.c4,.c3,.c8{grid-column:span 1}.g2,.g3,.g4{grid-template-columns:1fr}.frow3,.frow4{grid-template-columns:1fr 1fr}.segRow{grid-template-columns:64px minmax(0,1fr) 44px 32px}}
-@media(max-width:640px){.app{padding:16px 14px 40px}.topbar{flex-direction:column;align-items:flex-start;gap:12px}.statusBar{flex-wrap:wrap}.brand h1{font-size:17px}.frow,.frow3,.frow4{grid-template-columns:1fr}.g2,.g3,.g4{grid-template-columns:1fr}.segRow{grid-template-columns:1fr 1fr;gap:5px}.nav{overflow-x:auto;flex-wrap:nowrap;width:100%}.navBtn{flex-shrink:0}.paletteGrid{grid-template-columns:repeat(6,1fr)}}
+@media(max-width:640px){.app{padding:14px 12px 120px}.topbar{flex-direction:column;align-items:flex-start;gap:12px}.statusBar{width:100%}.brand h1{font-size:17px}.frow,.frow3,.frow4{grid-template-columns:1fr}.g2,.g3,.g4{grid-template-columns:1fr}.segRow{grid-template-columns:1fr 1fr;gap:5px}.paletteGrid{grid-template-columns:repeat(6,1fr)}.engGrid{grid-template-columns:repeat(2,1fr)}.engGrid>div:nth-child(2){border-right:none}.engGrid>div:nth-child(1),.engGrid>div:nth-child(2){border-bottom:1px solid var(--line)}.navBtn{padding:9px 13px;font-size:11px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   AMBILIGHT BRIDGE — APPLE-INSPIRED UI v7.0
-   VISUAL-ONLY OVERRIDE
-   No API, JS, IDs, endpoints or behavior changed.
-   ═══════════════════════════════════════════════════════════════════════ */
-:root{
-  --bg:#f5f5f7;--bg2:#ffffff;--card:#ffffff;--card2:#f8f8fa;
-  --line:#d2d2d7;--line2:#b8b8bf;--text:#1d1d1f;--soft:#515154;--muted:#86868b;
-  --cyan:#0071e3;--blue:#007aff;--purple:#5856d6;--green:#34c759;
-  --red:#ff3b30;--yellow:#ff9f0a;--pink:#ff2d55;--orange:#ff9500;
-  --r:16px;--r-sm:11px;--r-pill:999px;
-  --shadow:0 8px 30px rgba(0,0,0,.07);--shadow-sm:0 2px 12px rgba(0,0,0,.055);
-  --glass:none;--grad-accent:linear-gradient(90deg,#007aff,#5856d6);
-}
-html{background:var(--bg)}
-body{background:var(--bg);color:var(--text);font-size:14px;letter-spacing:0}
-body::before,body::after{display:none!important}
-.app{max-width:1280px;padding:28px 28px 64px}
-.topbar{background:rgba(255,255,255,.92);border:1px solid rgba(0,0,0,.08);border-radius:20px;
- box-shadow:var(--shadow);backdrop-filter:none;-webkit-backdrop-filter:none;padding:18px 22px;margin-bottom:14px}
-.topbar::before{display:none}
-.brand{gap:12px}.brandIcon{font-size:27px;filter:none;animation:none;color:var(--blue)}
-.brand h1{font-size:19px;font-weight:700;color:var(--text);background:none;-webkit-text-fill-color:initial}
-.brand h1 em{background:none;-webkit-text-fill-color:var(--blue);font-weight:700}
-.brand p{color:var(--muted);font-size:9px;letter-spacing:1.2px}
-.statusBar{gap:8px}.statusPill{padding:7px 12px;background:#f5f5f7;border:1px solid rgba(0,0,0,.06);
- color:var(--soft);backdrop-filter:none}.statusPill:hover{border-color:var(--line);color:var(--text)}
-.statusDot{width:8px;height:8px;box-shadow:none}.statusDot.on,.statusDot.ws{animation:none;box-shadow:none}
-.fpsChip{padding:6px 10px;background:#f5f5f7;border:1px solid rgba(0,0,0,.06);color:var(--soft)}
-.nav{gap:2px;padding:3px;margin-bottom:24px;background:#e9e9ed;border:0;border-radius:12px;
- backdrop-filter:none;width:100%;box-shadow:none}
-.navBtn{padding:9px 15px;border-radius:9px;color:#6e6e73;font-size:12px;font-weight:600;transition:background .18s,color .18s}
-.navBtn:hover{color:var(--text);background:rgba(255,255,255,.7)}
-.navBtn.active{background:#fff;color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.10);border:0}
-.navBtn .badge{background:#e8f5ec;color:#248a3d}
-.page.active{animation:applePageIn .22s ease both}
-@keyframes applePageIn{from{opacity:.7;transform:translateY(3px)}to{opacity:1;transform:none}}
-.card{background:var(--card);border:1px solid rgba(0,0,0,.075);border-radius:var(--r);
- box-shadow:var(--shadow-sm);backdrop-filter:none;-webkit-backdrop-filter:none;padding:20px 22px;
- transition:box-shadow .18s,border-color .18s;animation:none}
-.card::before{display:none}.card:hover{transform:none;border-color:rgba(0,0,0,.10);box-shadow:var(--shadow)}
-.cardHead{gap:10px;margin-bottom:17px}.cardHead h3{font-size:11px;color:var(--muted);letter-spacing:.45px;font-weight:600}
-.cardHead h3 b{font-size:16px;color:var(--text);font-weight:650}.cardHead .cardIcon{font-size:17px;filter:none;opacity:.7}
-.statBox{background:#f8f8fa;border:1px solid rgba(0,0,0,.055);border-radius:12px;box-shadow:none;padding:16px}
-.statBox::after{display:none}.statBox:hover{transform:none;background:#f8f8fa;border-color:var(--line)}
-.statVal{font-size:24px;font-weight:650;color:var(--text)}.statLabel{color:var(--muted);font-size:9px}
-.zoneCard{background:#f8f8fa;border:1px solid rgba(0,0,0,.055);border-radius:12px}
-.zoneCard:hover{transform:none;border-color:var(--line)}
-.zoneSwatch{box-shadow:0 1px 4px rgba(0,0,0,.12) inset,0 2px 6px rgba(0,0,0,.08)}
-.zoneData{color:var(--soft)}.zoneData strong{color:var(--text)}
-.ledStrip{height:30px;border-radius:8px;background:#e9e9ed;box-shadow:inset 0 0 0 1px rgba(0,0,0,.07)}
-.ledLegend{color:var(--muted)}
-label{color:var(--muted);font-size:9px;font-weight:600}
-input,select{background:#fff;color:var(--text);border:1px solid #d2d2d7;border-radius:9px;box-shadow:none}
-input:hover,select:hover{border-color:#b8b8bf}
-input:focus,select:focus{border-color:#007aff;background:#fff;box-shadow:0 0 0 3px rgba(0,122,255,.12)}
-input[type=range]{height:5px;background:#d2d2d7}
-input[type=range]::-webkit-slider-thumb{width:20px;height:20px;background:#fff;border:1px solid #c7c7cc;
- box-shadow:0 2px 7px rgba(0,0,0,.20)}input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.04)}
-input[type=range]::-moz-range-thumb{width:18px;height:18px;background:#fff;border:1px solid #c7c7cc;box-shadow:0 2px 7px rgba(0,0,0,.20)}
-input[type=checkbox]{accent-color:#007aff}
-.rangeRow span{color:var(--soft)}
-.btn{padding:10px 18px;border-radius:10px;border:1px solid #d2d2d7;background:#fff;color:#007aff;
- box-shadow:none;font-size:12px;font-weight:600;transition:background .18s,border-color .18s,transform .12s}
-.btn:hover{background:#f5f5f7;border-color:#b8b8bf;transform:none;box-shadow:none}
-.btn:active{transform:scale(.98)}
-.btnSave{background:#007aff;border-color:#007aff;color:#fff}.btnSave:hover{background:#006ee6;border-color:#006ee6;color:#fff}
-.btnDanger{background:#fff0ef;border-color:#ffd1cd;color:#d70015}.btnDanger:hover{background:#ffe8e6;border-color:#ffb8b2}
-.btnDim{background:#f5f5f7;border-color:#e0e0e5;color:#515154}.btnDim:hover{background:#ebebef}
-.btnSm{padding:7px 12px}.btnRow{gap:8px;margin-top:15px}
-.segSide{color:#6e6e73;border-bottom:1px solid #e5e5ea;font-size:9px;letter-spacing:1.1px}
-.segSide::before{background:#007aff;box-shadow:none;width:5px;height:5px}
-.segRow:hover{background:#f8f8fa;border-color:#e5e5ea}.segAddr{background:#f5f5f7;border-color:#e0e0e5;color:#515154}
-.meterBar{background:#e5e5ea;box-shadow:none}.meterFill{box-shadow:none}
-.meterFill.brightness{background:#007aff}.meterFill.saturation{background:#5856d6}
-.meterFill.motion{background:#ff9500}.meterFill.energy{background:#34c759}.meterFill.speed{background:#ff9f0a}
-.sceneBadge{padding:5px 10px;font-size:9px}
-.sceneBadge.dark{background:#f2f2f4;color:#86868b;border-color:#e5e5ea}
-.sceneBadge.normal{background:#edf5ff;color:#006edb;border-color:#d6e8ff}
-.sceneBadge.bright{background:#fff7e6;color:#a65f00;border-color:#ffe4b0}
-.sceneBadge.action{background:#fff0ef;color:#d70015;border-color:#ffd1cd}
-.sceneBadge.calm{background:#edf9f0;color:#248a3d;border-color:#cfeeda}
-.toast{top:18px;background:rgba(255,255,255,.96);color:var(--text);border:1px solid rgba(0,0,0,.08);
- box-shadow:0 12px 40px rgba(0,0,0,.12);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
-.toast.ok{color:#248a3d;border-color:#cfeeda;box-shadow:0 12px 40px rgba(52,199,89,.12)}
-.toast.err{color:#d70015;border-color:#ffd1cd;box-shadow:0 12px 40px rgba(255,59,48,.10)}
-.modalOverlay{background:rgba(0,0,0,.28);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-.modalBox{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:18px;box-shadow:0 25px 80px rgba(0,0,0,.18);padding:28px 30px}
-.modalBox::before{height:2px;background:#007aff}
-@media (max-width:900px){.app{padding:16px 16px 42px}.g4{grid-template-columns:repeat(2,1fr)}.topbar{padding:16px}.nav{overflow-x:auto;flex-wrap:nowrap}.navBtn{flex:0 0 auto}}
-@media (max-width:680px){.app{padding:12px 12px 34px}.topbar{border-radius:15px}.brand h1{font-size:17px}.brand p{display:none}.statusBar{gap:5px}.statusPill{padding:6px 9px}.statusPill span:not(.statusDot){display:none}.fpsChip{display:none}.g2,.g3,.g4,.g12{grid-template-columns:1fr}.c3,.c4,.c6,.c8,.c12{grid-column:span 1}.card{padding:17px}.frow,.frow3,.frow4{grid-template-columns:1fr}.nav{margin-bottom:16px}.navBtn{padding:9px 12px}.segRow{grid-template-columns:62px minmax(0,1fr) 44px 28px}}
-@media (prefers-color-scheme:dark){
-  :root{--bg:#f5f5f7}
-}
-
 </style>
 </head><body>
 <div class="app">
@@ -387,6 +323,7 @@ input[type=checkbox]{accent-color:#007aff}
 
 <!-- ═══════════════ MOOD STUDIO ═══════════════ -->
 <section class="page" id="page-mood">
+  <div class="sectionNote">Egységek: Hue = °, relatív effektparaméterek = %. A firmware belső 0–255 formátuma csak az API-adatátvitelben jelenik meg.</div>
   <div class="g2">
     <div class="card"><div class="cardHead"><span class="cardIcon">🎨</span><h3><b>Bal Oldal</b> · LEFT 30‑59</h3></div><div id="moodLeftForm"></div></div>
     <div class="card"><div class="cardHead"><span class="cardIcon">🎨</span><h3><b>Jobb Oldal</b> · RIGHT 90‑119</h3></div><div id="moodRightForm"></div></div>
@@ -405,7 +342,7 @@ input[type=checkbox]{accent-color:#007aff}
   </div>
   <div class="g2" style="margin-top:14px">
     <div class="card"><div class="cardHead"><span class="cardIcon">📐</span><h3>Zóna <b>Analízis</b></h3></div><div class="g2" id="zoneAnalysis" style="gap:8px"></div></div>
-    <div class="card"><div class="cardHead"><span class="cardIcon">🧠</span><h3>Smart Engine <b>Státusz</b></h3></div><div id="engineStatus"></div></div>
+    <div class="card"><div class="cardHead"><span class="cardIcon">🧠</span><h3>Smart Engine <b>Státusz</b></h3></div><div id="engineStatus"></div><div class="unitHint">A Scene Analyzer és Adaptive Controller jelenleg böngésző-oldali elemzés/előnézet; a v5.6.1 nem küldi automatikusan az adaptív értékeket firmware-paraméterként.</div></div>
   </div>
 </section>
 
@@ -415,17 +352,22 @@ input[type=checkbox]{accent-color:#007aff}
     <div class="card"><div class="cardHead"><span class="cardIcon">📡</span><h3>TV <b>Kapcsolat</b></h3></div>
       <div class="frow"><div><label>TV IP-cím</label><input id="cfgTvIP" placeholder="192.168.1.x"></div><div><label>Port</label><input value="1925 (JointSPACE)" disabled></div></div>
       <div class="checkRow"><input type="checkbox" id="cfgTvSync"><label>TV Master Sync</label></div>
-      <div class="checkRow"><input type="checkbox" id="cfgTvBSync"><label>TV fényerő követése</label></div>
-      <p style="font-size:10px;color:var(--muted);margin-top:8px">TV Master Sync + Side Clone együtt: a Mapper 30–59 és 90–119 tartománya figyelmen kívül marad; ezeket a Side Clone vezérli. IP módosítás után ments és indítsd újra az ESP32‑t.</p>
+      <div class="checkRow"><input type="checkbox" id="cfgTvBSync" disabled><label>TV fényerő követése — nem támogatott ezen a JointSPACE v1 TV-n</label></div>
+      <div style="margin-top:10px"><label>Ambilight forrás</label><select id="cfgAmbSrc"><option value="0">Measured — nyers, természetes (ajánlott)</option><option value="1">Processed — a TV által simított</option></select></div><p style="font-size:10px;color:var(--muted);margin-top:6px">Measured: a TV nyers, feldolgozatlan zónaszíneit használja (nincs kétszeres simítás). Processed: a TV saját Ambilight-simítását veszi át.</p><p style="font-size:10px;color:var(--muted);margin-top:8px">TV POWER állapot: <b>ismeretlen</b>. Ezen a modellen a JointSPACE v1 <code>/1/system/power</code> végpont 404, ezért az „élő jel” és a valódi TV-bekapcsolás külön fogalom. TV Master Sync + Side Clone együtt: a Mapper 30–59 és 90–119 tartománya figyelmen kívül marad; ezeket a Side Clone vezérli. IP módosítás után ments és indítsd újra az ESP32‑t.</p>
     </div>
     <div class="card"><div class="cardHead"><span class="cardIcon">🪞</span><h3>Side <b>Clone</b></h3></div>
       <div class="checkRow"><input type="checkbox" id="cfgCloneOn"><label>Side Clone engedélyezése</label></div>
-      <div class="rangeRow"><label style="min-width:70px">Fényerő</label><input type="range" id="cfgCloneBri" min="0" max="255" value="255"><span id="cfgCloneBriV">255</span></div>
+      <div class="rangeRow"><label style="min-width:70px">Fényerő</label><input type="range" id="cfgCloneBri" min="0" max="100" value="100"><span id="cfgCloneBriV">100 %</span></div>
       <div class="frow"><div><label>Bal start</label><input type="number" id="cfgCloneLS" min="0" max="119" value="30"></div><div><label>Bal db</label><input type="number" id="cfgCloneLC" min="0" max="120" value="30"></div></div>
       <div class="frow"><div><label>Jobb start</label><input type="number" id="cfgCloneRS" min="0" max="119" value="90"></div><div><label>Jobb db</label><input type="number" id="cfgCloneRC" min="0" max="120" value="30"></div></div>
       <div class="checkRow"><input type="checkbox" id="cfgCloneLR"><label>Bal fordított</label></div>
       <div class="checkRow"><input type="checkbox" id="cfgCloneRR"><label>Jobb fordított</label></div>
     </div>
+  </div>
+  <div class="card" style="margin-top:14px"><div class="cardHead"><span class="cardIcon">📺</span><h3>TV <b>Státusz</b> <span class="sceneBadge dark" id="tvStatLive" style="margin-left:auto">—</span></h3></div>
+    <div class="g4" id="tvStatusGrid"></div>
+    <p id="tvPowerInfo" style="font-size:10px;color:var(--muted);margin-top:8px">TV POWER: ismeretlen</p>
+    <p style="font-size:10px;color:var(--muted);margin-top:4px">A TV státusza (forrás, csatorna, hangerő, Ambilight mód) egy-egy JointSPACE v1 végponton, rotációban frissül.</p>
   </div>
   <div class="btnRow"><button class="btn btnSave" onclick="saveConfig()">💾 Mentés</button></div>
 </section>
@@ -447,15 +389,17 @@ input[type=checkbox]{accent-color:#007aff}
   </div>
   <div class="g2" style="margin-top:14px">
     <div class="card"><div class="cardHead"><span class="cardIcon">🔆</span><h3><b>Fényerő & Simítás</b></h3></div>
-      <div class="rangeRow"><label style="min-width:80px">Fényerő</label><input type="range" id="cfgBri" min="0" max="255" value="160"><span id="cfgBriV">160</span></div>
-      <div class="rangeRow"><label style="min-width:80px">Simítás</label><input type="range" id="cfgSmooth" min="0" max="100" value="70"><span id="cfgSmoothV">70</span></div>
-      <div class="rangeRow"><label style="min-width:80px">Fekete küszöb</label><input type="range" id="cfgBlack" min="0" max="100" value="4"><span id="cfgBlackV">4</span></div>
+      <div class="rangeRow"><label style="min-width:80px">Fényerő</label><input type="range" id="cfgBri" min="0" max="100" value="63"><span id="cfgBriV">63 %</span></div>
+      <div class="rangeRow"><label style="min-width:80px">Simítás</label><input type="range" id="cfgSmooth" min="0" max="100" value="70"><span id="cfgSmoothV">70 %</span></div>
+      <div class="rangeRow"><label style="min-width:80px">Fekete küszöb</label><input type="range" id="cfgBlack" min="0" max="255" value="4"><span id="cfgBlackV">4 / 255</span></div>
+      <div class="unitHint">Relatív kezelőértékek: fényerő és simítás = %. A fekete küszöb digitális RGB szint, ezért 0–255.</div>
     </div>
     <div class="card"><div class="cardHead"><span class="cardIcon">📡</span><h3><b>Dinamikus fényerő</b></h3></div>
       <div class="checkRow"><input type="checkbox" id="cfgDynOn"><label>Engedélyezve</label></div>
-      <div class="frow3"><div><label>Min</label><input type="number" id="cfgDynMin" min="0" max="255" value="0"></div><div><label>Max</label><input type="number" id="cfgDynMax" min="0" max="255" value="255"></div><div><label>Válasz</label><input type="number" id="cfgDynResp" min="1" max="100" value="35"></div></div>
+      <div class="frow3"><div><label>Minimum</label><div class="unitField"><input type="number" id="cfgDynMin" min="0" max="100" value="0"><span class="unitSuffix">%</span></div></div><div><label>Maximum</label><div class="unitField"><input type="number" id="cfgDynMax" min="0" max="100" value="100"><span class="unitSuffix">%</span></div></div><div><label>Válasz</label><div class="unitField"><input type="number" id="cfgDynResp" min="0" max="100" value="35"><span class="unitSuffix">%</span></div></div></div>
       <div class="checkRow"><input type="checkbox" id="cfgMoodDyn"><label>Mood dinamikus fényerő</label></div>
-      <div class="rangeRow"><label style="min-width:80px">Mélység</label><input type="range" id="cfgMoodDep" min="0" max="100" value="25"><span id="cfgMoodDepV">25</span></div>
+      <div class="rangeRow"><label style="min-width:80px">Mélység</label><input type="range" id="cfgMoodDep" min="0" max="100" value="25"><span id="cfgMoodDepV">25 %</span></div>
+      <div class="unitHint">A Mood mélysége 0–100% között keveri a jelenet-fényességet a statikus globális fényerővel.</div>
     </div>
   </div>
   <div class="card" style="margin-top:14px"><div class="cardHead"><span class="cardIcon">📦</span><h3><b>OTA Firmware Frissítés</b></h3></div>
@@ -469,7 +413,7 @@ input[type=checkbox]{accent-color:#007aff}
 <section class="page" id="page-diag">
   <div class="g4" id="diagStats"></div>
   <div class="card" style="margin-top:14px"><div class="cardHead"><span class="cardIcon">📋</span><h3><b>Frame Statisztika</b></h3></div>
-    <div class="g4"><div class="statBox"><div class="statVal good" id="diagGood">0</div><div class="statLabel">Good Frames</div></div><div class="statBox"><div class="statVal bad" id="diagBad">0</div><div class="statLabel">Bad Frames</div></div><div class="statBox"><div class="statVal info" id="diagSeq">0</div><div class="statLabel">Last Seq</div></div><div class="statBox"><div class="statVal accent" id="diagFPS">0</div><div class="statLabel">Current FPS</div></div></div>
+    <div class="g4"><div class="statBox"><div class="statVal good" id="diagGood">0</div><div class="statLabel">Good Frames</div></div><div class="statBox"><div class="statVal bad" id="diagBad">0</div><div class="statLabel">Bad Frames</div></div><div class="statBox"><div class="statVal info" id="diagSeq">0</div><div class="statLabel">Last Seq</div></div><div class="statBox"><div class="statVal accent" id="diagFPS">0</div><div class="statLabel">Képfrissítés (Hz)</div></div></div>
     <div style="margin-top:12px"><div><label>Utolsó hiba</label><div id="diagError" style="font-size:11px;color:var(--red);padding:6px 10px;border-radius:var(--r-sm);background:rgba(255,92,114,.05);border:1px solid rgba(255,92,114,.12);margin-top:4px;word-break:break-all">—</div></div></div>
   </div>
   <div class="card" style="margin-top:14px"><div class="cardHead"><span class="cardIcon">🔧</span><h3><b>ESP32 Rendszer</b></h3></div><div class="g3" id="sysInfo"></div></div>
@@ -500,6 +444,7 @@ input[type=checkbox]{accent-color:#007aff}
    SECTION 1 — UTILITIES & SMART ENGINE MODULES
    ═══════════════════════════════════════════════════════════════════════ */
 const $=id=>document.getElementById(id),$$=(s,p)=>[...(p||document).querySelectorAll(s)];
+const escHtml=v=>String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const clamp=(v,lo=0,hi=255)=>Math.max(lo,Math.min(hi,Number(v)||0));
 const clamp01=v=>Math.max(0,Math.min(1,Number(v)||0));
 const ZN=["L0","L1","R0","R1"];
@@ -790,6 +735,36 @@ function updateMapperPreview(){
 }
 
 /* ── Dash stats ─────────────────────────────────────────────────── */
+function pctFrom255(v){return Math.round(Math.max(0,Math.min(255,Number(v)||0))*100/255)}
+function raw255FromPct(v){return Math.round(Math.max(0,Math.min(100,Number(v)||0))*255/100)}
+function formatDurationSeconds(v){
+  let sec=Math.max(0,Math.floor(Number(v)||0));
+  const d=Math.floor(sec/86400); sec%=86400;
+  const h=Math.floor(sec/3600); sec%=3600;
+  const m=Math.floor(sec/60); sec%=60;
+  return d?`${d} d ${h} h`:h?`${h} h ${m} min`:m?`${m} min ${sec} s`:`${sec} s`;
+}
+function formatBytesSI(v){
+  const n=Math.max(0,Number(v)||0);
+  if(n>=1000000)return (n/1000000).toFixed(2)+" MB";
+  if(n>=1000)return (n/1000).toFixed(1)+" kB";
+  return Math.round(n)+" B";
+}
+function renderTVStatus(s){
+  const el=$("tvStatusGrid");if(!el)return;
+  const online=!!(s&&s.tv_signal==="active");
+  let vol="—";
+  if(online&&(s.tv_volume!=null)&&s.tv_volume>=0){vol=s.tv_muted?"Némítva":(s.tv_volume+(s.tv_vol_max?(" / "+s.tv_vol_max):""));}
+  const rows=[
+    {l:"Forrás",v:online?(s.tv_source||"—"):"—"},
+    {l:"Csatorna",v:online?(s.tv_channel||"—"):"—"},
+    {l:"Hangerő",v:online?vol:"—"},
+    {l:"Ambilight mód",v:online?(s.tv_mode||"—"):"—"}
+  ];
+  el.innerHTML=rows.map(x=>`<div class="statBox"><div class="statVal info" style="font-size:16px">${escHtml(x.v)}</div><div class="statLabel">${x.l}</div></div>`).join("");
+  const lv=$("tvStatLive");if(lv){lv.textContent=online?"jel aktív":"jel nincs";lv.className="sceneBadge "+(online?"action":"dark");}
+  const note=$("tvPowerInfo");if(note)note.textContent="TV POWER: ismeretlen · a JointSPACE v1 modellen nincs /1/system/power endpoint";
+}
 function renderStats(s){
   const st=$("dashStats");if(!st)return;
   st.innerHTML=[
@@ -799,8 +774,8 @@ function renderStats(s){
     {l:"Good Frames",v:(s.good||0).toLocaleString(),c:"good"},
     {l:"Errors",v:(s.bad||0).toLocaleString(),c:s.bad>10?"warn":"good"},
     {l:"Firmware",v:s.firmware||"—",c:"accent"},
-    {l:"Uptime",v:Math.floor((s.uptime||0)/60000)+" min",c:"info"},
-    {l:"Free Heap",v:((s.free_heap||0)/1024).toFixed(1)+" KB",c:"accent"},
+    {l:"Üzemidő",v:formatDurationSeconds(s.uptime_s??s.uptime),c:"info"},
+    {l:"Szabad memória",v:formatBytesSI(s.free_heap),c:"accent"},
     {l:"Mood FX contract",v:(s.fx_contract_count||FX_COUNT)+"/"+FX_COUNT,c:(s.fx_contract_count===FX_COUNT)?"good":"warn"}
   ].map(x=>`<div class="statBox"><div class="statVal ${x.c}">${x.v}</div><div class="statLabel">${x.l}</div></div>`).join("");
 }
@@ -808,12 +783,12 @@ function renderDiag(s){
   $("diagGood").textContent=(s.good||0).toLocaleString();
   $("diagBad").textContent=(s.bad||0).toLocaleString();
   $("diagSeq").textContent=s.smart_seq||0;
-  $("diagFPS").textContent=fps_v;
+  $("diagFPS").textContent=fps_v+" Hz";
   $("diagError").textContent=s.last_error||"—";
   const si=$("sysInfo");if(si)si.innerHTML=[
     {l:"ESP IP",v:s.esp_ip||"—"},{l:"TV IP",v:s.tv_ip||"—"},{l:"Firmware",v:s.firmware||"—"},
-    {l:"Schema",v:s.schema||"—"},{l:"RSSI",v:(s.rssi||0)+" dBm"},{l:"Uptime",v:Math.floor((s.uptime||0)/60000)+" min"},
-    {l:"Free Heap",v:((s.free_heap||0)/1024).toFixed(1)+" KB"},{l:"WS Port",v:s.ws_port||81},{l:"HTTP Port",v:s.http_port||8080}
+    {l:"Schema",v:s.schema||"—"},{l:"RSSI",v:(s.rssi||0)+" dBm"},{l:"Üzemidő",v:formatDurationSeconds(s.uptime_s??s.uptime)},
+    {l:"Szabad memória",v:formatBytesSI(s.free_heap)},{l:"WS port",v:s.ws_port||81},{l:"HTTP port",v:s.http_port||8080}
   ].map(x=>`<div class="statBox"><div class="statVal info" style="font-size:18px">${x.v}</div><div class="statLabel">${x.l}</div></div>`).join("");
 }
 
@@ -824,6 +799,7 @@ function renderScene(sc){
     <div class="meterLabel"><span>Telítettség</span><span>${Math.round(sc.saturation)}%</span></div><div class="meterBar"><div class="meterFill saturation" style="width:${Math.round(sc.saturation)}%"></div></div>
     <div class="meterLabel"><span>Mozgás</span><span>${Math.round(sc.motion)}%</span></div><div class="meterBar"><div class="meterFill motion" style="width:${Math.round(sc.motion)}%"></div></div>
     <div class="meterLabel"><span>Energia</span><span>${Math.round(sc.energy)}%</span></div><div class="meterBar"><div class="meterFill energy" style="width:${Math.round(sc.energy)}%"></div></div>
+    <div class="meterLabel"><span>Jelenetváltozás</span><span>${Math.round(sc.sceneChange??0)}%</span></div><div class="meterBar"><div class="meterFill motion" style="width:${Math.round(sc.sceneChange??0)}%"></div></div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
       <span style="font-size:10px;color:var(--muted)">Domináns:</span>
       <span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:rgb(${sc.dominantColor.r},${sc.dominantColor.g},${sc.dominantColor.b})"></span>
@@ -849,7 +825,7 @@ function renderZoneAnalysis(sc){
 function renderEngineStatus(){
   const p=$("engineStatus");if(!p)return;
   p.innerHTML=`
-    <div class="statBox"><div class="statVal info">${fps_v}</div><div class="statLabel">FPS</div></div>
+    <div class="statBox"><div class="statVal info">${fps_v}</div><div class="statLabel">Képfrissítés (Hz)</div></div>
     <div style="margin-top:8px;font-size:11px;color:var(--soft)">
       <div>Mód: <b style="color:var(--cyan)">SMART PRO</b></div>
       <div>Pipeline: <b style="color:var(--green)">${pipeline?pipeline.stats.accepted:0} accepted</b></div>
@@ -875,6 +851,9 @@ function normalizeState(s){
     bad:s.bad??s.badFrames??0,
     free_heap:s.free_heap??s.heap??0,
     smart_seq:s.smart_seq??s.seq??0,
+    last_error:s.last_error??"",
+    tv_signal:s.tv_signal??(s.tv_online?"active":"stale"),
+    tv_power:s.tv_power??"unknown",
     http_port:s.http_port??8080,
     ws_port:s.ws_port??81,
     black_threshold:s.black_threshold??s.blackThreshold??4,
@@ -900,20 +879,20 @@ function normalizeState(s){
 function applyConfig(raw){
   const s=normalizeState(raw);
   config={...(config||{}),...s};
-  setVal("cfgTvIP",s.tv_ip||"");$("cfgTvSync").checked=!!s.tv_sync;$("cfgTvBSync").checked=!!s.tv_bsync;
-  $("cfgCloneOn").checked=!!s.clone_on;setVal("cfgCloneBri",s.clone_bri??255);$("cfgCloneBriV").textContent=s.clone_bri??255;
+  setVal("cfgTvIP",s.tv_ip||"");$("cfgTvSync").checked=!!s.tv_sync;$("cfgTvBSync").checked=false;var _as=$("cfgAmbSrc");if(_as)_as.value=(s.amb_src??0);
+  $("cfgCloneOn").checked=!!s.clone_on;setVal("cfgCloneBri",pctFrom255(s.clone_bri??255));$("cfgCloneBriV").textContent=pctFrom255(s.clone_bri??255)+" %";
   setVal("cfgCloneLS",s.clone_l_start??30);setVal("cfgCloneLC",s.clone_l_count??30);
   setVal("cfgCloneRS",s.clone_r_start??90);setVal("cfgCloneRC",s.clone_r_count??30);
   $("cfgCloneLR").checked=!!s.clone_l_rev;$("cfgCloneRR").checked=!!s.clone_r_rev;
-  setVal("cfgBri",s.brightness??160);$("cfgBriV").textContent=s.brightness??160;
-  setVal("cfgSmooth",s.smoothing??70);$("cfgSmoothV").textContent=s.smoothing??70;
-  setVal("cfgBlack",s.black_threshold??4);$("cfgBlackV").textContent=s.black_threshold??4;
-  $("cfgDynOn").checked=!!s.dyn_on;setVal("cfgDynMin",s.dyn_min??0);setVal("cfgDynMax",s.dyn_max??255);setVal("cfgDynResp",s.dyn_resp??35);
-  $("cfgMoodDyn").checked=!!s.mood_dyn;setVal("cfgMoodDep",s.mood_dep??25);$("cfgMoodDepV").textContent=s.mood_dep??25;
+  setVal("cfgBri",pctFrom255(s.brightness??160));$("cfgBriV").textContent=pctFrom255(s.brightness??160)+" %";
+  setVal("cfgSmooth",s.smoothing??70);$("cfgSmoothV").textContent=(s.smoothing??70)+" %";
+  setVal("cfgBlack",s.black_threshold??4);$("cfgBlackV").textContent=(s.black_threshold??4)+" / 255";
+  $("cfgDynOn").checked=!!s.dyn_on;setVal("cfgDynMin",pctFrom255(s.dyn_min??0));setVal("cfgDynMax",pctFrom255(s.dyn_max??255));setVal("cfgDynResp",pctFrom255(s.dyn_resp??35));
+  $("cfgMoodDyn").checked=!!s.mood_dyn;setVal("cfgMoodDep",pctFrom255(s.mood_dep??25));$("cfgMoodDepV").textContent=pctFrom255(s.mood_dep??25)+" %";
   $("moodLinkSel").value=s.mood_link??0;
   setVal("cfgWifiSSID",s.wifi_ssid||"");setVal("cfgWifiPass",s.wifi_pass||"");
   applyMood("left",s.left_mood);applyMood("right",s.right_mood);
-  renderSegs(s.segments||[]);renderStats(s);renderDiag(s);updateMapperPreview();
+  renderSegs(s.segments||[]);renderStats(s);renderDiag(s);updateMapperPreview();renderTVStatus(s);
 }
 function setVal(id,v){const e=$(id);if(e)e.value=v}
 
@@ -927,27 +906,27 @@ function moodForm(side){
 <div><label>Effekt</label><select id="m_${side}_eff">${EFFECTS.map((e,i)=>`<option value="${i}">${e}</option>`).join("")}</select></div>
 <div class="checkRow"><input type="checkbox" id="m_${side}_auto"><label>Auto szín (TV)</label></div>
 <div class="rangeRow"><label style="min-width:60px">Hue</label><input type="range" id="m_${side}_hue" min="0" max="360" value="210"><span id="m_${side}_hueV">210°</span></div>
-<div class="frow3"><div class="rangeRow"><label>Sat</label><input type="range" id="m_${side}_sat" min="0" max="255" value="220"><span id="m_${side}_satV" style="font-size:9px">220</span></div><div class="rangeRow"><label>Bri</label><input type="range" id="m_${side}_bri" min="0" max="255" value="110"><span id="m_${side}_briV" style="font-size:9px">110</span></div><div class="rangeRow"><label>Speed</label><input type="range" id="m_${side}_sp" min="1" max="100" value="28"><span id="m_${side}_spV" style="font-size:9px">28</span></div></div>
+<div class="frow3"><div class="rangeRow"><label>Telítettség</label><input type="range" id="m_${side}_sat" min="0" max="100" value="86"><span id="m_${side}_satV" style="font-size:9px">86 %</span></div><div class="rangeRow"><label>Fényerő</label><input type="range" id="m_${side}_bri" min="0" max="100" value="43"><span id="m_${side}_briV" style="font-size:9px">43 %</span></div><div class="rangeRow"><label>Sebesség</label><input type="range" id="m_${side}_sp" min="0" max="100" value="28"><span id="m_${side}_spV" style="font-size:9px">28 %</span></div></div>
 <div><label>Paletta</label><select id="m_${side}_pal">${PALETTES.map((e,i)=>`<option value="${i}">${e}</option>`).join("")}</select></div>
-<div class="frow3"><div class="rangeRow"><label>Scale</label><input type="range" id="m_${side}_sc" min="1" max="100" value="70"><span id="m_${side}_scV" style="font-size:9px">70</span></div><div class="rangeRow"><label>Motion</label><input type="range" id="m_${side}_mot" min="0" max="100" value="65"><span id="m_${side}_motV" style="font-size:9px">65</span></div><div class="rangeRow"><label>Glow</label><input type="range" id="m_${side}_gl" min="0" max="100" value="75"><span id="m_${side}_glV" style="font-size:9px">75</span></div></div>
-<div class="frow3"><div class="rangeRow"><label>Density</label><input type="range" id="m_${side}_den" min="0" max="100" value="55"><span id="m_${side}_denV" style="font-size:9px">55</span></div><div class="rangeRow"><label>Turb</label><input type="range" id="m_${side}_tur" min="0" max="100" value="45"><span id="m_${side}_turV" style="font-size:9px">45</span></div><div><label>Színmód</label><select id="m_${side}_cm"><option value="0">Paletta</option><option value="1">Fix hue</option><option value="2">Auto TV</option><option value="3">Hue gradiens</option></select></div></div>
+<div class="frow3"><div class="rangeRow"><label>Skála</label><input type="range" id="m_${side}_sc" min="0" max="100" value="70"><span id="m_${side}_scV" style="font-size:9px">70 %</span></div><div class="rangeRow"><label>Mozgás</label><input type="range" id="m_${side}_mot" min="0" max="100" value="65"><span id="m_${side}_motV" style="font-size:9px">65 %</span></div><div class="rangeRow"><label>Fényudvar</label><input type="range" id="m_${side}_gl" min="0" max="100" value="75"><span id="m_${side}_glV" style="font-size:9px">75 %</span></div></div>
+<div class="frow3"><div class="rangeRow"><label>Sűrűség</label><input type="range" id="m_${side}_den" min="0" max="100" value="55"><span id="m_${side}_denV" style="font-size:9px">55 %</span></div><div class="rangeRow"><label>Örvénylés</label><input type="range" id="m_${side}_tur" min="0" max="100" value="45"><span id="m_${side}_turV" style="font-size:9px">45 %</span></div><div><label>Színmód</label><select id="m_${side}_cm"><option value="0">Paletta</option><option value="1">Fix hue</option><option value="2">Auto TV</option><option value="3">Hue gradiens</option></select></div></div>
 <div class="checkRow"><input type="checkbox" id="m_${side}_rev"><label>Fordított</label></div>`;
 }
 function applyMood(side,m){
   if(!m)return;$("m_"+side+"_on").checked=m.mode>0;$("m_"+side+"_eff").value=m.effect??12;$("m_"+side+"_auto").checked=!!m.auto;
   setVal("m_"+side+"_hue",m.hue??210);$("m_"+side+"_hueV").textContent=(m.hue??210)+"°";
-  setVal("m_"+side+"_sat",m.sat??220);$("m_"+side+"_satV").textContent=m.sat??220;
-  setVal("m_"+side+"_bri",m.bri??110);$("m_"+side+"_briV").textContent=m.bri??110;
-  setVal("m_"+side+"_sp",m.speed??28);$("m_"+side+"_spV").textContent=m.speed??28;
+  setVal("m_"+side+"_sat",pctFrom255(m.sat??220));$("m_"+side+"_satV").textContent=pctFrom255(m.sat??220)+" %";
+  setVal("m_"+side+"_bri",pctFrom255(m.bri??110));$("m_"+side+"_briV").textContent=pctFrom255(m.bri??110)+" %";
+  setVal("m_"+side+"_sp",m.speed??28);$("m_"+side+"_spV").textContent=(m.speed??28)+" %";
   $("m_"+side+"_pal").value=m.pal??(side==="left"?0:1);
-  setVal("m_"+side+"_sc",m.scale??70);$("m_"+side+"_scV").textContent=m.scale??70;
-  setVal("m_"+side+"_mot",m.motion??65);$("m_"+side+"_motV").textContent=m.motion??65;
-  setVal("m_"+side+"_gl",m.glow??75);$("m_"+side+"_glV").textContent=m.glow??75;
-  setVal("m_"+side+"_den",m.density??55);$("m_"+side+"_denV").textContent=m.density??55;
-  setVal("m_"+side+"_tur",m.turb??45);$("m_"+side+"_turV").textContent=m.turb??45;
+  setVal("m_"+side+"_sc",m.scale??70);$("m_"+side+"_scV").textContent=(m.scale??70)+" %";
+  setVal("m_"+side+"_mot",m.motion??65);$("m_"+side+"_motV").textContent=(m.motion??65)+" %";
+  setVal("m_"+side+"_gl",m.glow??75);$("m_"+side+"_glV").textContent=(m.glow??75)+" %";
+  setVal("m_"+side+"_den",m.density??55);$("m_"+side+"_denV").textContent=(m.density??55)+" %";
+  setVal("m_"+side+"_tur",m.turb??45);$("m_"+side+"_turV").textContent=(m.turb??45)+" %";
   $("m_"+side+"_cm").value=m.cm??2;$("m_"+side+"_rev").checked=!!m.rev;
 }
-function colMood(side){return{mode:$("m_"+side+"_on").checked?1:0,effect:+$("m_"+side+"_eff").value,auto:$("m_"+side+"_auto").checked,hue:+$("m_"+side+"_hue").value,sat:+$("m_"+side+"_sat").value,bri:+$("m_"+side+"_bri").value,speed:+$("m_"+side+"_sp").value,pal:+$("m_"+side+"_pal").value,scale:+$("m_"+side+"_sc").value,motion:+$("m_"+side+"_mot").value,glow:+$("m_"+side+"_gl").value,density:+$("m_"+side+"_den").value,turb:+$("m_"+side+"_tur").value,cm:+$("m_"+side+"_cm").value,rev:$("m_"+side+"_rev").checked}}
+function colMood(side){return{mode:$("m_"+side+"_on").checked?1:0,effect:+$("m_"+side+"_eff").value,auto:$("m_"+side+"_auto").checked,hue:+$("m_"+side+"_hue").value,sat:raw255FromPct($("m_"+side+"_sat").value),bri:raw255FromPct($("m_"+side+"_bri").value),speed:+$("m_"+side+"_sp").value,pal:+$("m_"+side+"_pal").value,scale:+$("m_"+side+"_sc").value,motion:+$("m_"+side+"_mot").value,glow:+$("m_"+side+"_gl").value,density:+$("m_"+side+"_den").value,turb:+$("m_"+side+"_tur").value,cm:+$("m_"+side+"_cm").value,rev:$("m_"+side+"_rev").checked}}
 
 /* ── Segments ───────────────────────────────────────────────────── */
 const SIDES=["BOTTOM (0–29)","LEFT (30–59)","TOP (60–89)","RIGHT (90–119)"];
@@ -992,11 +971,11 @@ function collectSegs(){
 }
 function collectCfg(){
   return {
-    brightness:+$("cfgBri").value,smoothing:+$("cfgSmooth").value,black_threshold:+$("cfgBlack").value,
-    dyn_on:$("cfgDynOn").checked,dyn_min:+$("cfgDynMin").value,dyn_max:+$("cfgDynMax").value,dyn_resp:+$("cfgDynResp").value,
-    mood_dyn:$("cfgMoodDyn").checked,mood_dep:+$("cfgMoodDep").value,
-    tv_sync:$("cfgTvSync").checked,tv_bsync:$("cfgTvBSync").checked,
-    clone_on:$("cfgCloneOn").checked,clone_bri:+$("cfgCloneBri").value,
+    brightness:raw255FromPct($("cfgBri").value),smoothing:+$("cfgSmooth").value,black_threshold:+$("cfgBlack").value,
+    dyn_on:$("cfgDynOn").checked,dyn_min:raw255FromPct($("cfgDynMin").value),dyn_max:raw255FromPct($("cfgDynMax").value),dyn_resp:raw255FromPct($("cfgDynResp").value),
+    mood_dyn:$("cfgMoodDyn").checked,mood_dep:raw255FromPct($("cfgMoodDep").value),
+    tv_sync:$("cfgTvSync").checked,tv_bsync:$("cfgTvBSync").checked,amb_src:+($("cfgAmbSrc")?.value||0),
+    clone_on:$("cfgCloneOn").checked,clone_bri:raw255FromPct($("cfgCloneBri").value),
     clone_l_start:+$("cfgCloneLS").value,clone_l_count:+$("cfgCloneLC").value,
     clone_r_start:+$("cfgCloneRS").value,clone_r_count:+$("cfgCloneRC").value,
     clone_l_rev:$("cfgCloneLR").checked,clone_r_rev:$("cfgCloneRR").checked,
@@ -1018,86 +997,10 @@ async function saveConfig(){
     step="CONFIG";
     await apiFormPost("/api/config",{brightness:cfg.brightness,smoothing:cfg.smoothing,blackThreshold:cfg.black_threshold,
       dyn_on:cfg.dyn_on?1:0,dyn_min:cfg.dyn_min,dyn_max:cfg.dyn_max,dyn_resp:cfg.dyn_resp,
-      mood_dyn:cfg.mood_dyn?1:0,mood_dep:cfg.mood_dep,tv_sync:cfg.tv_sync?1:0,tv_bsync:cfg.tv_bsync?1:0});
+      mood_dyn:cfg.mood_dyn?1:0,mood_dep:cfg.mood_dep,tv_sync:cfg.tv_sync?1:0,tv_bsync:cfg.tv_bsync?1:0,amb_src:cfg.amb_src});
     step="MAPPER";
     await apiPost("/api/mapper",{segments:cfg.segments});
     step="MOOD";
     const moodArgs=(side)=>({
       [side+"Mode"]:cfg[side].mode?1:0,[side+"Effect"]:cfg[side].effect,[side+"Hue"]:cfg[side].hue,
-      [side+"Sat"]:cfg[side].sat,[side+"Val"]:cfg[side].bri,[side+"Speed"]:cfg[side].speed,
-      [side+"Palette"]:cfg[side].pal,[side+"Scale"]:cfg[side].scale,[side+"Motion"]:cfg[side].motion,
-      [side+"Glow"]:cfg[side].glow,[side+"Density"]:cfg[side].den,[side+"Turbulence"]:cfg[side].turb,
-      [side+"ColorMode"]:cfg[side].cm,[side+"Auto"]:cfg[side].auto?1:0,[side+"Reverse"]:cfg[side].rev?1:0
-    });
-    await apiFormPost("/api/mood",{...moodArgs("left"),...moodArgs("right"),linkMode:cfg.mood_link});
-    step="SIDECLONE";
-    await apiFormPost("/api/sideclone",{enabled:cfg.clone_on?1:0,brightness:cfg.clone_bri,leftStart:cfg.clone_l_start,leftCount:cfg.clone_l_count,rightStart:cfg.clone_r_start,rightCount:cfg.clone_r_count,leftReverse:cfg.clone_l_rev?1:0,rightReverse:cfg.clone_r_rev?1:0});
-    toast("Beállítások elmentve ✓");setTimeout(loadAll,300);
-  }catch(e){toast("Mentési hiba ["+step+"]: "+e.message,1)}
-}
-async function defaults(){
-  try{
-    const segs=canonicalMapperDefaults().filter(x=>x.count>0);
-    await apiFormPost("/api/config",{brightness:160,smoothing:70,blackThreshold:4});
-    await apiPost("/api/mapper",{segments:segs});
-    await apiFormPost("/api/mood",{leftMode:0,rightMode:0,leftHue:0,rightHue:120,leftSat:255,rightSat:255,leftVal:200,rightVal:200,linkMode:0});
-    await apiFormPost("/api/sideclone",{enabled:1,brightness:255,leftStart:30,leftCount:30,rightStart:90,rightCount:30,leftReverse:0,rightReverse:0});
-    toast("Gyári alapbeállítások visszaállítva ✓");setTimeout(loadAll,500);
-  }catch(e){toast("Gyári visszaállítás hiba: "+e.message,1)}
-}
-async function restartESP(){try{await apiFormPost("/api/reboot?confirm=1",{});toast("ESP32 újraindul...");updateConn(false)}catch(e){toast("Hiba: "+e.message,1)}}
-async function ledTest(m){const rgb={red:[255,0,0],green:[0,255,0],blue:[0,0,255],white:[255,255,255]}[m]||[255,255,255];try{await apiFormPost("/api/ledtest",{r:rgb[0],g:rgb[1],b:rgb[2]});toast("LED teszt: "+m)}catch(e){toast("LED teszt hiba: "+e.message,1)}}
-async function saveWiFi(){try{const r=await apiFormPost("/api/wifi",{ssid:$("cfgWifiSSID").value,password:$("cfgWifiPass").value});toast(r.changed===false?"WiFi már beállítva ✓":"WiFi mentve — újraindítás ✓")}catch(e){toast("WiFi mentési hiba: "+e.message,1)}}
-async function saveAuth(){
-  const p1=$("cfgAuthPass").value,p2=$("cfgAuthPass2").value;
-  if(p1.length>63)return toast("Jelszó max 63 karakter",1);
-  if(p1!==p2)return toast("A két jelszó nem egyezik",1);
-  try{
-    const r=await apiFormPost("/api/auth",{password:$("cfgAuthOn").checked?p1:""});
-    if(!r.enabled){auth="";localStorage.removeItem("ab_auth")}
-    toast(r.enabled?"Auth bekapcsolva ✓":"Auth kikapcsolva ✓");
-    $("cfgAuthPass").value="";$("cfgAuthPass2").value="";
-    refreshAuthState();
-  }catch(e){toast("Auth mentési hiba: "+e.message,1)}
-}
-async function disableAuth(){
-  try{await apiFormPost("/api/auth",{password:""});auth="";localStorage.removeItem("ab_auth");toast("Auth kikapcsolva ✓");refreshAuthState()}
-  catch(e){toast("Hiba: "+e.message,1)}
-}
-async function refreshAuthState(){
-  try{
-    const a=await apiGet("/api/auth");
-    const b=$("authStateBadge");
-    if(b){
-      if(a.enabled){b.textContent="BEKAPCSOLVA";b.className="sceneBadge action";}
-      else if(a.setup){b.textContent="BEÁLLÍTÁS SZÜKSÉGES";b.className="sceneBadge action";}
-      else {b.textContent="KIKAPCSOLVA";b.className="sceneBadge calm";}
-    }
-    // Első indításkor (setup) figyelmeztetés: a config nyitva, de az OTA jelszó nélkül tiltott.
-    if(a.setup){ toast("Ajánlott jelszót beállítani — OTA-frissítés csak jelszóval elérhető",1); }
-    const c=$("cfgAuthOn");if(c)c.checked=!!a.enabled;
-  }catch(e){}
-}
-async function uploadOTA(){
-  const f=$("otaFile").files[0];if(!f)return toast("Válassz .bin fájlt",1);
-  if(!/\.bin$/i.test(f.name))return toast("Csak .bin fájl",1);
-  const x=new XMLHttpRequest();x.open("POST",apiUrl("/api/ota"));
-  if(auth)x.setRequestHeader("Authorization",auth);
-  $("otaBtn").disabled=true;$("otaProgress").style.display="block";
-  x.upload.onprogress=e=>{if(e.lengthComputable){const p=Math.round(e.loaded/e.total*100);$("otaBar").style.width=p+"%";$("otaText").textContent="Feltöltés "+p+"%"}};
-  x.onload=()=>{if(x.status>=200&&x.status<300){$("otaText").textContent="Sikeres! Újraindul...";toast("OTA sikeres ✓");setTimeout(()=>location.reload(),8000)}else{$("otaText").textContent="HIBA: "+x.status;toast("OTA hiba",1)}};
-  x.onerror=()=>{$("otaText").textContent="Hálózati hiba";toast("OTA hiba",1)};
-  const fd=new FormData();fd.append("update",f);x.send(fd);
-}
-
-/* ── Tabs ───────────────────────────────────────────────────────── */
-$$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
-  $$(".navBtn").forEach(x=>x.classList.remove("active"));b.classList.add("active");
-  $$(".page").forEach(x=>x.classList.remove("active"));$("page-"+b.dataset.page).classList.add("active");
-  if(b.dataset.page==="mapper")updateMapperPreview();
-}));
-
-/* ── Live range updates ─────────────────────────────────────────── */
-["cfgBri","cfgSmooth","cfgBlack","cfgMoodDep","cfgCloneBri"].forEach(id=>$(id)?.addEventListener("input",()=>{const v=$(id).value;const e=$(id+"V");if(e)e.textContent=v}));
-["left","right"].forEach(s=>["hue","sat","bri","sp","sc","mot","gl","den","tur"].forEach(p=>$("m_"+s+"_"+p)?.addEventListener("input",()=>{const v=$("m_"+s+"_"+p).value;const e=$("m_"+s+"_"+p+"V");if(e)e.textContent=p==="hue"?v+"°":v})));
 )AMB_CC_HTML";

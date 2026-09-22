@@ -138,3 +138,6 @@ in committed source.
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+
+**Current release:** `v5.6.1-C3-HARDENED-MERGED` is now the canonical ESP32-C3 firmware. `web/index.html`, `docs/index.html` and `firmware/embedded_ui.h` are synchronized to this release; historical firmware files remain for traceability.
