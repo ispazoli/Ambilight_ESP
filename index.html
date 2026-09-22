@@ -421,7 +421,6 @@ padding:30px 32px;max-width:460px;width:calc(100% - 36px);box-shadow:0 40px 90px
     <h2>🔌 Kapcsolódás az ESP32‑höz</h2>
     <p>Az ESP32 közvetlenül HTTP-n szolgálja ki a vezérlőt. GitHub Pages HTTPS-ről a böngésző a helyi HTTP API-t blokkolhatja. Ilyenkor nyisd meg ezt a vezérlőt közvetlenül az ESP32-ről: <code>http://ESP:8080</code>.</p>
     <label>ESP32 IP-cím</label><input id="modalIP" placeholder="192.168.1.100 vagy ambilight.local">
-    <label>Web Auth jelszó</label><input id="modalAuth" type="password" placeholder="ambilight">
     <div class="btnRow" style="justify-content:flex-end"><button class="btn" onclick="doConnect()">Kapcsolódás</button></div>
   </div>
 </div>
@@ -592,7 +591,6 @@ async function api(p,o={}){
   if(ghPagesPreview)throw Error("GitHub Pages preview — firmware kapcsolat kikapcsolva");
   const u=apiUrl(p);if(!u)throw Error("No IP");
   const r=await fetch(u,{...o,cache:"no-store",headers:apiH(o.headers||{})});
-  if(r.status===401&&!auth){const pw=prompt("Web auth jelszó:","ambilight");if(pw){auth="Basic "+btoa("admin:"+pw);localStorage.setItem("ab_auth",auth);return api(p,o)}}
   return r;
 }
 async function responseError(r,path){
@@ -693,7 +691,7 @@ async function doConnect(){
     try{setESPAddress(raw)}catch(e){toast(e.message,1);return}
   }
   try{setESPAddress(raw)}catch(e){toast(e.message,1);return}
-  if(pw){auth="Basic "+btoa("admin:"+pw);localStorage.setItem("ab_auth",auth)}
+  if(pw){auth="Basic "+btoa("admin:"+pw);}
   try{
     const cap=await apiGet("/api/capabilities");
     applyCapabilities(cap);
@@ -1001,14 +999,14 @@ async function saveAuth(){
   if(p1!==p2)return toast("A két jelszó nem egyezik",1);
   try{
     const r=await apiFormPost("/api/auth",{password:$("cfgAuthOn").checked?p1:""});
-    if(!r.enabled){auth="";localStorage.removeItem("ab_auth")}
+    if(!r.enabled){auth="";}
     toast(r.enabled?"Auth bekapcsolva ✓":"Auth kikapcsolva ✓");
     $("cfgAuthPass").value="";$("cfgAuthPass2").value="";
     refreshAuthState();
   }catch(e){toast("Auth mentési hiba: "+e.message,1)}
 }
 async function disableAuth(){
-  try{await apiFormPost("/api/auth",{password:""});auth="";localStorage.removeItem("ab_auth");toast("Auth kikapcsolva ✓");refreshAuthState()}
+  try{await apiFormPost("/api/auth",{password:""});auth="";;toast("Auth kikapcsolva ✓");refreshAuthState()}
   catch(e){toast("Hiba: "+e.message,1)}
 }async function refreshAuthState(){
   try{
