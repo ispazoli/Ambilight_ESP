@@ -550,11 +550,11 @@ class SmartEngine{
 /* ═══════════════════════════════════════════════════════════════════════════
    SECTION 2 — APPLICATION CORE
    ═══════════════════════════════════════════════════════════════════════════ */
-let espIP=localStorage.getItem("ab_ip")||"",auth=localStorage.getItem("ab_auth")||"";
+let espIP="",auth=""; // Preview branch: no stored ESP address or Web Auth credentials.
 let espHost="",espPort=8080,wsPort=81,ws=null,wsTO=null,pollTO=null,config=null,fps_f=0,fps_t=performance.now(),fps_v=0,wsRetryMs=1000;
 let mapperSources=[],mapperMaxSegments=12;
 const SRC_FALLBACK=["BLACK","L0","L1","R0","R1","L_AVG","R_AVG","ALL_AVG","LR_TOP","LR_BOT","VERT_AVG","L0R0_BL","L1R1_BL","GRAD_TOP","GRAD_RIGHT","GRAD_BOT","GRAD_LEFT"];
-const ghPagesPreview=location.hostname.endsWith(".github.io") || location.hostname.endsWith(".githubusercontent.com") || location.pathname.includes("/Ambilight_ESP/");
+const ghPagesPreview=true; // This branch is a GitHub Pages UI preview. Never contact ESP32 or request Web Auth.
 let securePage=location.protocol==="https:";
 let localESPPage=location.protocol==="http:" && (location.port==="8080" || location.hostname==="ambilight.local");
 function normalizeESP(v){
