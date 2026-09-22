@@ -295,6 +295,19 @@ h1,h2,h3,h4,.statVal,.sideBrand strong,.profileText b,.deviceRow b{
   .navBtn{font-size:12px}
   .profileText b{font-size:11px}
 }
+
+/* Navigation: every tab enabled */
+.navBtn:not(:disabled){
+  opacity:1;
+  pointer-events:auto;
+  cursor:pointer;
+}
+.navBtn:disabled{
+  opacity:.45;
+  pointer-events:none;
+  cursor:not-allowed;
+}
+.navBtn .navPill{pointer-events:none}
 </style>
 </head>
 <body>
@@ -303,9 +316,9 @@ h1,h2,h3,h4,.statVal,.sideBrand strong,.profileText b,.deviceRow b{
   <div class="sideBrand"><div class="sideLogo">✦</div><div><strong>Ambilight</strong><span>BRIDGE CONTROL</span></div></div>
   <div class="profileCard"><div class="avatar">AB</div><div class="profileText"><b>Ambilight Admin</b><span>ESP32‑C3 · Demo</span></div><span class="profileMore">•••</span></div>
   <div class="sideLabel">MAIN MENU</div><nav class="sideNav" id="mainNav">
-    <button class="navBtn active" data-page="dash"><span class="navGlyph">⌂</span>Dashboard</button><button class="navBtn" data-page="mapper"><span class="navGlyph">⌘</span>LED Mapper</button><button class="navBtn" data-page="mood"><span class="navGlyph">✧</span>Mood Studio</button><button class="navBtn" data-page="smart"><span class="navGlyph">◈</span>Smart Engine <span class="navPill">PRO</span></button><button class="navBtn" data-page="tv"><span class="navGlyph">◉</span>TV Ambilight</button><button class="navBtn" data-page="diag"><span class="navGlyph">▤</span>Diagnostics</button>
+    <button type="button" class="navBtn active" data-page="dash"><span class="navGlyph">⌂</span>Dashboard</button><button type="button" class="navBtn" data-page="mapper"><span class="navGlyph">⌘</span>LED Mapper</button><button type="button" class="navBtn" data-page="mood"><span class="navGlyph">✧</span>Mood Studio</button><button type="button" class="navBtn" data-page="smart"><span class="navGlyph">◈</span>Smart Engine <span class="navPill">PRO</span></button><button type="button" class="navBtn" data-page="tv"><span class="navGlyph">◉</span>TV Ambilight</button><button type="button" class="navBtn" data-page="diag"><span class="navGlyph">▤</span>Diagnostics</button>
   </nav>
-  <div class="sideLabel sideLabel2">SYSTEM</div><nav class="sideNav"><button class="navBtn" data-page="settings"><span class="navGlyph">⚙</span>Settings</button></nav>
+  <div class="sideLabel sideLabel2">SYSTEM</div><nav class="sideNav"><button type="button" class="navBtn" data-page="settings"><span class="navGlyph">⚙</span>Settings</button></nav>
   <div class="sideBottom"><div class="connectionCard"><div class="connectionTop"><span class="liveDot"></span><b>Preview connected</b></div><span>ESP32 offline simulator</span></div><div class="helpLink">ⓘ Help & Center</div><div class="versionLine">Pro Control Center <span>v7</span></div></div>
 </aside>
 <main class="mainContent"><header class="contentHeader"><div class="mobileMenu" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</div><div class="headerTitles"><div class="eyebrow">AMBILIGHT BRIDGE</div><h1 id="headerPageTitle">Dashboard</h1><p id="headerPageSub">Monitor and control your ESP32‑C3 Ambilight controller</p></div><div class="headerActions"><label class="searchBox"><span>⌕</span><input placeholder="Search anything…" aria-label="Global search"></label><div class="headerIcon">☰</div><div class="headerIcon alert">♧<i></i></div><div class="statusBar"><div class="statusPill"><span class="statusDot" id="tvDot"></span><span id="tvLabel">TV —</span></div><div class="statusPill"><span class="statusDot" id="espDot"></span><span id="espLabel">ESP —</span></div><div class="statusPill"><span class="statusDot ws" id="wsDot" style="display:none"></span><span id="wsLabel" style="display:none">WS</span></div></div></div></header>
@@ -1052,8 +1065,13 @@ async function uploadOTA(){
 
 /* ── Tabs ───────────────────────────────────────────────────────── */
 $$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
-  $$(".navBtn").forEach(x=>x.classList.remove("active"));b.classList.add("active");
-  $$(".page").forEach(x=>x.classList.remove("active"));$("page-"+b.dataset.page).classList.add("active");
+  if(b.disabled)return;
+  $$(".navBtn").forEach(x=>{x.classList.remove("active");x.setAttribute("aria-current","false")});
+  b.classList.add("active");b.setAttribute("aria-current","page");
+  $$(".page").forEach(x=>x.classList.remove("active"));
+  const target=$("page-"+b.dataset.page);
+  if(!target){console.warn("Missing page:",b.dataset.page);return}
+  target.classList.add("active");
   const titles={dash:["Dashboard","Monitor and control your ESP32‑C3 Ambilight controller"],mapper:["LED Mapper","Configure the 12 physical LED segments"],mood:["Mood Studio","Create independent ambient lighting scenes"],smart:["Smart Engine","Realtime analysis and adaptive control"],tv:["TV Ambilight","Philips TV connection and side cloning"],settings:["Settings","Connectivity, brightness, authentication and OTA"],diag:["Diagnostics","Runtime statistics and system health"]};
   const t=titles[b.dataset.page];if(t){$("headerPageTitle").textContent=t[0];$("headerPageSub").textContent=t[1]}
   document.getElementById("sidebar")?.classList.remove("open");
@@ -1066,7 +1084,8 @@ $$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
 
 
 </script><script>
-window.__AMBILIGHT_PREVIEW__=true;
+
+$$(".navBtn").forEach(b=>b.removeAttribute("disabled"));$$(".navBtn").forEach(b=>b.setAttribute("aria-current",b.classList.contains("active")?"page":"false"));window.__AMBILIGHT_PREVIEW__=true;
 try{localStorage.removeItem("ab_auth");localStorage.setItem("ab_ip","preview")}catch(e){}
 window.ab_ip="preview";
 window.addEventListener("DOMContentLoaded",()=>{try{if(typeof loadAll==="function")loadAll()}catch(e){console.error(e)}});
