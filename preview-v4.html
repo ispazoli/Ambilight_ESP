@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f5f5f7">
+<meta name="theme-color" content="#f3f4f6">
 <meta name="description" content="Ambilight Bridge UI Preview — simulated ESP32-C3 / WS2815 Smart Control Center.">
 <title>Ambilight Bridge · UI Preview · Clean</title>
 <style>
@@ -436,6 +436,55 @@ input[type=checkbox]{accent-color:#007aff}.segRow{border-color:transparent}.segR
 .smartStatusMeta{display:grid;grid-template-columns:1fr 1fr;gap:12px 28px;margin-top:18px;padding-top:18px;border-top:1px solid #e7e9ed;font-size:14px}.smartStatusMeta div{display:flex;justify-content:space-between;gap:12px}.smartStatusMeta span{color:#707987}.smartStatusMeta b{color:#172033}.smartStatusMeta b:first-of-type{color:#1478e8}.smartGood{color:#209c5b!important}
 .smartRuntimePanels{position:absolute;left:-99999px;width:1px;height:1px;overflow:hidden;pointer-events:none}
 @media(max-width:700px){.smartHero{gap:14px;margin-bottom:18px}.smartHeroIcon{width:62px;height:62px;border-radius:18px;font-size:30px}.smartHero h2{font-size:28px}.smartHero p{font-size:15px}.smartFeature{padding:16px;gap:13px;border-radius:19px}.smartFeatureIcon{width:56px;height:56px;flex-basis:56px;border-radius:15px;font-size:25px}.smartFeatureText strong{font-size:18px}.smartFeatureText span{font-size:14px}.smartFeatureText small{font-size:12px}.smartArrow{font-size:30px}.smartStatusCard{padding:16px;border-radius:19px}.smartStatusTitle{font-size:17px}.smartStatusIcon{width:38px;height:38px}.smartActive{padding:8px 11px;font-size:12px}.smartStats{gap:8px}.smartStat{padding:13px 5px}.smartStat strong{font-size:21px}.smartStat span{font-size:11px}.smartStatusMeta{grid-template-columns:1fr;gap:9px;font-size:13px}}
+</style>
+<style id="pro-control-preview">
+:root{--bg:#f3f4f6;--bg2:#f3f4f6;--card:#fff;--card2:#f8f9fb;--line:#e1e4e8;--line2:#cfd4da;--text:#18212f;--soft:#657080;--muted:#8a94a3;--cyan:#1677ff;--blue:#1677ff;--purple:#7657e8;--green:#16a05d;--red:#dc3545;--yellow:#d99800;--pink:#e74778;--orange:#e47b22;--r:16px;--r-sm:11px;--r-pill:999px;--shadow:0 10px 30px rgba(24,33,47,.07);--shadow-sm:0 4px 16px rgba(24,33,47,.055);--glass:none;--grad-accent:#1677ff}
+html,body{background:var(--bg)}
+body{color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.45;letter-spacing:0}
+body::before,body::after{display:none!important}
+.app{max-width:1240px;margin:0 auto;padding:18px 20px 40px}
+.topbar{padding:17px 20px;margin-bottom:14px;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);backdrop-filter:none;-webkit-backdrop-filter:none}
+.topbar::before{display:none}.brand{gap:12px}.brandIcon{font-size:28px;filter:none;animation:none;color:var(--blue)}
+.brand h1{font-size:21px;font-weight:760;letter-spacing:-.55px;background:none;-webkit-text-fill-color:initial;color:var(--text)}
+.brand h1 em{background:none;-webkit-text-fill-color:initial;color:var(--blue)}.brand p{font-size:10px;color:var(--muted);letter-spacing:1px}
+.statusBar{gap:7px}.statusPill{padding:7px 11px;border:1px solid var(--line);background:var(--card2);color:var(--soft);font-size:11px;box-shadow:none;backdrop-filter:none}
+.statusPill:hover{border-color:var(--line2);color:var(--text)}.statusDot{width:8px;height:8px;box-shadow:none}.statusDot.on,.statusDot.ws{animation:none;box-shadow:none}
+.fpsChip{padding:6px 10px;background:#edf4ff;border:1px solid #d7e7ff;color:var(--blue);font-size:10px}
+.nav{width:100%;max-width:none;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;gap:4px;padding:4px;margin-bottom:16px;background:#fff;border:1px solid var(--line);border-radius:14px;backdrop-filter:none}
+.nav::-webkit-scrollbar{height:0}.navBtn{flex:0 0 auto;padding:9px 13px;border-radius:10px;color:#687383;font-size:12px;font-weight:650;letter-spacing:0}
+.navBtn:hover{background:#f2f4f7;color:var(--text)}.navBtn.active{background:#1677ff;color:#fff;box-shadow:0 4px 12px rgba(22,119,255,.20)}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:var(--shadow-sm);backdrop-filter:none;transition:border-color .2s,box-shadow .2s}
+.card::before{display:none}.card:hover{transform:none;border-color:var(--line2);box-shadow:var(--shadow)}
+.cardHead{gap:9px;margin-bottom:13px}.cardHead h3{font-size:11px;color:var(--soft);letter-spacing:.6px}.cardHead h3 b{font-size:14px;color:var(--text)}.cardHead .cardIcon{font-size:17px;filter:none}
+.statBox{padding:14px 12px;background:#f8f9fb;border:1px solid #e6e9ed;border-radius:11px}.statBox::after{display:none}.statVal{font-size:22px}.statLabel{font-size:9px}
+.btn{padding:9px 16px;background:#edf4ff;border:1px solid #d5e6ff;color:var(--blue);font-size:11px;box-shadow:none}.btn:hover{background:#e1eeff;border-color:#c4dcff;transform:none;box-shadow:none}
+.btnSave{background:#eaf8f1;border-color:#ccebdc;color:var(--green)}.btnDanger{background:#fff0f1;border-color:#f3d0d4;color:var(--red)}.btnDim{background:#f5f6f8;border-color:var(--line);color:#687383}
+input,select{background:#f8f9fb;color:var(--text);border-color:var(--line);padding:10px 11px}input:hover,select:hover{border-color:var(--line2)}
+input:focus,select:focus{border-color:#9bc3ff;background:#fff;box-shadow:0 0 0 3px rgba(22,119,255,.08)}
+input[type=range]{background:#dfe5ed}input[type=range]::-webkit-slider-thumb{background:#1677ff;border:2px solid #fff;box-shadow:0 2px 6px rgba(22,119,255,.25)}input[type=range]::-moz-range-thumb{background:#1677ff;border:2px solid #fff;box-shadow:0 2px 6px rgba(22,119,255,.25)}
+label{color:#7b8593}.g2,.g3,.g4{gap:12px}.btnRow{margin-top:12px}
+.smartHero{display:flex;align-items:center;gap:14px;margin:4px 2px 16px;padding:2px 0}.smartHeroIcon{width:58px;height:58px;flex:0 0 58px;border-radius:15px;font-size:28px;background:#fdeaf0;color:#e74778;box-shadow:none}
+.smartHero h2{font-size:29px;line-height:1.08;letter-spacing:-1px;font-weight:760;color:var(--text)}.smartHero p{margin-top:4px;font-size:14px;color:#707b8a}
+.smartFeatureList{display:grid;gap:10px}.smartFeature{min-height:94px;padding:15px 16px;gap:14px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:var(--shadow-sm)}
+.smartFeature:hover{transform:none;box-shadow:var(--shadow);border-color:var(--line2)}.smartFeatureIcon{width:52px;height:52px;flex:0 0 52px;border-radius:14px;font-size:23px}
+.smartFeatureText{gap:1px}.smartFeatureText strong{font-size:17px;line-height:1.2;font-weight:720;color:var(--text)}.smartFeatureText span{font-size:13px;color:#687383;line-height:1.35}.smartFeatureText small{font-size:11px;color:#8a94a3;margin-top:3px;line-height:1.35}
+.smartArrow{margin-left:auto;width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:#f3f5f8;color:#667180;font-size:25px;line-height:1}
+.smartStatusCard{margin-top:12px;padding:17px 18px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:var(--shadow-sm)}
+.smartStatusHead{margin-bottom:13px}.smartStatusTitle{gap:9px;font-size:16px;color:var(--text)}.smartStatusIcon{width:34px;height:34px;border-radius:10px;font-size:18px;background:#fdeaf0}
+.smartActive{padding:7px 11px;background:#e9f8f0;color:var(--green);font-size:11px}.smartActive i{width:8px;height:8px;background:#16a05d}
+.smartStats{gap:8px}.smartStat{padding:12px 7px;border:1px solid #e7eaee;border-radius:11px;background:#f8f9fb}.smartStat strong{font-size:20px;color:var(--text)}.smartStat span{margin-top:4px;font-size:10px;color:#7b8593}
+.smartStatusMeta{gap:8px 24px;margin-top:13px;padding-top:13px;border-top:1px solid #e8ebef;font-size:12px}.smartStatusMeta span{color:#7b8593}.smartStatusMeta b{color:var(--text)}.smartStatusMeta b:first-of-type{color:var(--blue)}.smartGood{color:var(--green)!important}
+.zoneCard{padding:11px 13px;border-radius:11px;background:#f8f9fb}.zoneSwatch{width:38px;height:38px;border-radius:9px;box-shadow:none}.ledStrip{height:24px;box-shadow:0 1px 4px rgba(24,33,47,.10) inset,0 0 0 1px var(--line)}
+.toast{background:#1f2733;color:#fff;border:none;box-shadow:0 8px 24px rgba(0,0,0,.18);backdrop-filter:none}
+#previewBadgeStatic{right:12px!important;bottom:12px!important;padding:6px 9px!important;font-size:9px!important;background:#1f2733!important;opacity:.88}
+@media(max-width:700px){
+ .app{padding:12px 12px 28px}.topbar{padding:15px 14px;border-radius:16px;margin-bottom:10px;display:block}.brand h1{font-size:20px}.brand p{font-size:9px;margin-top:1px}
+ .statusBar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:12px}.statusPill{justify-content:center;padding:7px 5px;min-width:0}.statusPill span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fpsChip{display:flex;align-items:center;justify-content:center}
+ .nav{margin-bottom:13px;border-radius:12px}.navBtn{padding:9px 12px;font-size:11px}.g2,.g3,.g4{grid-template-columns:1fr}
+ .smartHero{margin:2px 2px 13px}.smartHeroIcon{width:52px;height:52px;flex-basis:52px;font-size:25px;border-radius:14px}.smartHero h2{font-size:27px}.smartHero p{font-size:13px;line-height:1.4}
+ .smartFeature{min-height:88px;padding:13px 13px;gap:11px;border-radius:15px}.smartFeatureIcon{width:48px;height:48px;flex-basis:48px;border-radius:13px;font-size:21px}.smartFeatureText strong{font-size:16px}.smartFeatureText span{font-size:12px}.smartFeatureText small{font-size:10px}.smartArrow{width:28px;height:28px;font-size:23px}
+ .smartStatusCard{padding:14px;border-radius:15px}.smartStatusTitle{font-size:15px}.smartStatusIcon{width:32px;height:32px}.smartStats{grid-template-columns:repeat(2,1fr);gap:7px}.smartStat{padding:11px 5px}.smartStat strong{font-size:19px}.smartStatusMeta{grid-template-columns:1fr 1fr;gap:7px 14px;font-size:11px}
+}
 </style>
 </head><body>
 <script src="./preview-demo-api.js?v=20260922-3"></script>
