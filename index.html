@@ -1052,14 +1052,14 @@ async function doConnect(){
     applyCapabilities(cap);
     const s=await apiGet("/api/state");
     config={...cap,...normalizeState(s)};
-    $("connectModal").style.display="none";applyConfig(s);updateConn(true,config.tv_online);startWS();startPoll();
+    const cm=$("connectModal");if(cm)cm.style.display="none";applyConfig(s);updateConn(true,config.tv_online);startWS();startPoll();
   }catch(e){updateConn(false);toast("ESP kapcsolat hiba: "+e.message,1)}
 }
 async function loadAll(){
   try{
     const cap=await apiGet("/api/capabilities");applyCapabilities(cap);
     const s=await apiGet("/api/state");config={...cap,...normalizeState(s)};
-    applyConfig(s);$("connectModal").style.display="none";updateConn(true,config.tv_online);
+    applyConfig(s);const cm=$("connectModal");if(cm)cm.style.display="none";updateConn(true,config.tv_online);
     if(!ws)startWS();startPoll();
   }catch(e){const m=$("connectModal");if(m)m.style.display="flex";updateConn(false);if(window.__AMBILIGHT_PREVIEW__)console.warn("[PREVIEW] loadAll:",e)}
 }
