@@ -1171,3 +1171,23 @@ $$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
 /* ── Live range updates ─────────────────────────────────────────── */
 ["cfgBri","cfgSmooth","cfgBlack","cfgMoodDep","cfgCloneBri"].forEach(id=>$(id)?.addEventListener("input",()=>{const v=$(id).value;const e=$(id+"V");if(e)e.textContent=v}));
 ["left","right"].forEach(s=>["hue","sat","bri","sp","sc","mot","gl","den","tur"].forEach(p=>$("m_"+s+"_"+p)?.addEventListener("input",()=>{const v=$("m_"+s+"_"+p).value;const e=$("m_"+s+"_"+p+"V");if(e)e.textContent=p==="hue"?v+"°":v})));
+<script>
+/* PREVIEW BOOTSTRAP — visual-only preview, never asks for ESP32 credentials. */
+(function(){
+  window.prompt=function(){return null;};
+  try{localStorage.setItem("ab_ip","preview");localStorage.removeItem("ab_auth");}catch(e){}
+  function boot(){
+    try{
+      if(typeof setESPAddress==="function") setESPAddress("preview");
+      else { espHost="preview"; espPort=8080; espIP="preview"; }
+      const m=document.getElementById("connectModal");
+      if(m)m.style.display="none";
+      if(typeof loadAll==="function")loadAll();
+    }catch(e){
+      const m=document.getElementById("connectModal");if(m)m.style.display="none";
+    }
+  }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",boot);
+  else boot();
+})();
+</script>
