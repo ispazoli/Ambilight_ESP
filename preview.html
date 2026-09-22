@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#060d18">
-<meta name="description" content="Ambilight Bridge — ESP32-C3 Smart Control Center. Philips Ambilight TV backlight + WS2815 LED control with Smart Engine scene analysis.">
+<meta name="description" content="Ambilight Bridge UI Preview — simulated ESP32-C3 / WS2815 Smart Control Center.">
 <title>Ambilight Bridge · UI Preview</title>
 <style>
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -323,7 +323,8 @@ input[type=checkbox]{accent-color:#007aff}
 
 </style>
 </head><body>
-<script src="preview-demo-api.js"></script>
+<script src="./preview-demo-api.js?v=20260922-3"></script>
+<div id="previewBadgeStatic" style="position:fixed;right:14px;bottom:14px;z-index:10000;padding:8px 12px;border-radius:999px;background:#1d1d1f;color:#fff;font:600 10px system-ui;letter-spacing:.5px;box-shadow:0 4px 18px rgba(0,0,0,.18)">UI PREVIEW · ESP32 NÉLKÜL</div>
 
 <div class="app">
 <!-- ═══════════════ TOP BAR ═══════════════ -->
@@ -1086,6 +1087,6 @@ $$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
 ["cfgBri","cfgSmooth","cfgBlack","cfgMoodDep","cfgCloneBri"].forEach(id=>$(id)?.addEventListener("input",()=>{const v=$(id).value;const e=$(id+"V");if(e)e.textContent=v}));
 ["left","right"].forEach(s=>["hue","sat","bri","sp","sc","mot","gl","den","tur"].forEach(p=>$("m_"+s+"_"+p)?.addEventListener("input",()=>{const v=$("m_"+s+"_"+p).value;const e=$("m_"+s+"_"+p+"V");if(e)e.textContent=p==="hue"?v+"°":v})));
 
-<script src="preview-bootstrap.js"></script>
+<script src="./preview-bootstrap-v3.js?v=20260922-3"></script>
 </body>
 </html>
