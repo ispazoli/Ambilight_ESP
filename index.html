@@ -4,9 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f3f4f6">
-<meta name="ambilight-preview-version" content="20260922-pro-v3">
 <meta name="description" content="Ambilight Bridge UI Preview — simulated ESP32-C3 / WS2815 Smart Control Center.">
-<title>Ambilight Bridge · Smart Engine Preview</title>
+<title>Ambilight Bridge · Pro Control Center</title>
 <style>
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
 AMBILIGHT BRIDGE — MODERNIZED DESIGN SYSTEM v6.0
@@ -440,7 +439,7 @@ input[type=checkbox]{accent-color:#007aff}.segRow{border-color:transparent}.segR
 </style>
 <style id="pro-control-preview">
 /* ═══════════════════════════════════════════════════════════════════
-   PRO CONTROL CENTER v3 — CACHE BUSTED PREVIEW
+   PRO CONTROL CENTER v2 — PREVIEW ONLY
    Full-page visual harmonization. No runtime/API behavior changes.
    ═══════════════════════════════════════════════════════════════════ */
 :root{
@@ -589,8 +588,8 @@ input[type=checkbox]{width:15px!important;height:15px!important;accent-color:var
   .segRow{grid-template-columns:62px minmax(0,1fr) 48px 26px!important}
 }
 </style>
-<style id="preview-cache-bust">/* CACHE-BUSTED PREVIEW */body{--preview-version:'20260922-pro-v3'}.app{outline:0}.topbar{box-shadow:0 2px 12px rgba(16,24,40,.07)!important}.page.active{animation:pcPageIn .18s ease-out both!important}@keyframes pcPageIn{from{opacity:.96;transform:translateY(2px)}to{opacity:1;transform:none}}</style></head><body>
-<script src="./preview-demo-api.js?v=20260922-3"></script>
+</head><body>
+<script src="./preview-demo-api.js?v=20260922-pro-control-v5"></script>
 <div id="previewBadgeStatic" style="position:fixed;right:14px;bottom:14px;z-index:10000;padding:8px 12px;border-radius:999px;background:#1d1d1f;color:#fff;font:600 10px system-ui;letter-spacing:.5px;box-shadow:0 4px 18px rgba(0,0,0,.18)">UI PREVIEW · ESP32 NÉLKÜL</div>
 
 <div class="app">
@@ -606,7 +605,7 @@ input[type=checkbox]{width:15px!important;height:15px!important;accent-color:var
 </header>
 <!-- ═══════════════ NAVIGATION ═══════════════ -->
 <nav class="nav" id="mainNav">
-  <button class="navBtn" data-page="dash">🏠 Home</button>
+  <button class="navBtn active" data-page="dash">🏠 Home</button>
   <button class="navBtn" data-page="mapper">🗺️ Mapper</button>
   <button class="navBtn" data-page="mood">🎨 Mood Studio</button>
   <button class="navBtn" data-page="smart">🧠 Smart Engine</button>
@@ -1350,3 +1349,55 @@ async function saveAuth(){
   if(p1!==p2)return toast("A két jelszó nem egyezik",1);
   try{
     const r=await apiFormPost("/api/auth",{password:$("cfgAuthOn").checked?p1:""});
+    if(!r.enabled){auth="";localStorage.removeItem("ab_auth")}
+    toast(r.enabled?"Auth bekapcsolva ✓":"Auth kikapcsolva ✓");
+    $("cfgAuthPass").value="";$("cfgAuthPass2").value="";
+    refreshAuthState();
+  }catch(e){toast("Auth mentési hiba: "+e.message,1)}
+}
+async function disableAuth(){
+  try{await apiFormPost("/api/auth",{password:""});auth="";localStorage.removeItem("ab_auth");toast("Auth kikapcsolva ✓");refreshAuthState()}
+  catch(e){toast("Hiba: "+e.message,1)}
+}
+async function refreshAuthState(){
+  try{
+    const a=await apiGet("/api/auth");
+    const b=$("authStateBadge");
+    if(b){
+      if(a.enabled){b.textContent="BEKAPCSOLVA";b.className="sceneBadge action";}
+      else if(a.setup){b.textContent="BEÁLLÍTÁS SZÜKSÉGES";b.className="sceneBadge action";}
+      else {b.textContent="KIKAPCSOLVA";b.className="sceneBadge calm";}
+    }
+    // Első indításkor (setup) figyelmeztetés: a config nyitva, de az OTA jelszó nélkül tiltott.
+    if(a.setup){ toast("Ajánlott jelszót beállítani — OTA-frissítés csak jelszóval elérhető",1); }
+    const c=$("cfgAuthOn");if(c)c.checked=!!a.enabled;
+  }catch(e){}
+}
+async function uploadOTA(){
+  const f=$("otaFile").files[0];if(!f)return toast("Válassz .bin fájlt",1);
+  if(!/\.bin$/i.test(f.name))return toast("Csak .bin fájl",1);
+  const x=new XMLHttpRequest();x.open("POST",apiUrl("/api/ota"));
+  if(auth)x.setRequestHeader("Authorization",auth);
+  $("otaBtn").disabled=true;$("otaProgress").style.display="block";
+  x.upload.onprogress=e=>{if(e.lengthComputable){const p=Math.round(e.loaded/e.total*100);$("otaBar").style.width=p+"%";$("otaText").textContent="Feltöltés "+p+"%"}};
+  x.onload=()=>{if(x.status>=200&&x.status<300){$("otaText").textContent="Sikeres! Újraindul...";toast("OTA sikeres ✓");setTimeout(()=>location.reload(),8000)}else{$("otaText").textContent="HIBA: "+x.status;toast("OTA hiba",1)}};
+  x.onerror=()=>{$("otaText").textContent="Hálózati hiba";toast("OTA hiba",1)};
+  const fd=new FormData();fd.append("update",f);x.send(fd);
+}
+
+/* ── Tabs ───────────────────────────────────────────────────────── */
+$$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
+  $$(".navBtn").forEach(x=>x.classList.remove("active"));b.classList.add("active");
+  $$(".page").forEach(x=>x.classList.remove("active"));$("page-"+b.dataset.page).classList.add("active");
+  if(b.dataset.page==="mapper")updateMapperPreview();
+}));
+
+/* ── Live range updates ─────────────────────────────────────────── */
+["cfgBri","cfgSmooth","cfgBlack","cfgMoodDep","cfgCloneBri"].forEach(id=>$(id)?.addEventListener("input",()=>{const v=$(id).value;const e=$(id+"V");if(e)e.textContent=v}));
+["left","right"].forEach(s=>["hue","sat","bri","sp","sc","mot","gl","den","tur"].forEach(p=>$("m_"+s+"_"+p)?.addEventListener("input",()=>{const v=$("m_"+s+"_"+p).value;const e=$("m_"+s+"_"+p+"V");if(e)e.textContent=p==="hue"?v+"°":v})));
+
+
+</script>
+<script src="./preview-bootstrap-v3.js?v=20260922-pro-control-v5"></script>
+</body>
+</html>
