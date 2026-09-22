@@ -172,8 +172,7 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--primary);cursor:p
 .frow4{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
 .checkRow{display:flex;align-items:center;gap:9px;padding:6px 0}
 .checkRow label{margin:0;font-size:12px;color:var(--text);text-transform:none;letter-spacing:0;font-weight:600}
-.rangeRow{display:flex;align-items:center;gap:11px}
-.rangeRow input[type=range]{flex:1}.rangeRow span{font-size:11px;color:var(--soft);min-width:34px;text-align:right;font-weight:590;font-variant-numeric:tabular-nums}
+.rangeRow{display:flex;align-items:center;gap:11px}.rangeRow input[type=range]{flex:1}.rangeRow span{font-size:11px;color:var(--soft);min-width:52px;text-align:right;font-weight:590;font-variant-numeric:tabular-nums}.unitField{display:flex;align-items:center;gap:6px}.unitField input{flex:1;width:auto;min-width:0}.unitSuffix{flex:0 0 auto;font-size:11px;font-weight:650;color:var(--soft);min-width:22px}.unitHint{font-size:9px;color:var(--muted);line-height:1.4;margin-top:5px}.sectionNote{padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.42);font-size:10px;color:var(--muted);line-height:1.5;margin-top:10px}
 /* ── Buttons ─────────────────────────────────────────────────── */
 .btn{display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border-radius:var(--r-pill);
 border:1px solid rgba(0,122,255,.22);background:rgba(0,122,255,.10);color:var(--primary);
@@ -339,7 +338,7 @@ padding:30px 32px;max-width:460px;width:calc(100% - 36px);box-shadow:0 40px 90px
 </section>
 
 <!-- ═══════════════ SMART ENGINE ═══════════════ -->
-<section class="page" id="page-smart"><div class="card"><div class="cardHead"><span class="cardIcon">⚙️</span><h3>Smart Engine <b>Control</b></h3></div><div class="smartControlGrid"><label class="smartControl"><span>Dinamikus fényerő<br><small>Settings · cfgDynOn</small></span><input type="checkbox" id="smartDynOn"></label><label class="smartControl"><span>Mood dynamic<br><small>Settings · cfgMoodDyn</small></span><input type="checkbox" id="smartMoodDyn"></label><label class="smartControl"><span>TV brightness follow<br><small>TV · cfgTvBSync</small></span><input type="checkbox" id="smartTvBri"></label></div><div class="smartCtlNote">A kapcsolók a már létező firmware-beállításokat vezérlik; mentéshez használd a meglévő firmware mentési folyamatot.</div><div class="btnRow"><button class="btn btnSave btnSm" onclick="saveConfig()">💾 Mentés firmware-be</button><button class="btn btnDim btnSm" onclick="document.querySelector('[data-page=\"settings\"]').click()">⚙️ Részletes beállítások</button></div></div><div class="g2" style="margin-top:14px">
+<section class="page" id="page-smart"><div class="card"><div class="cardHead"><span class="cardIcon">⚙️</span><h3>Smart Engine <b>Control</b></h3></div><div class="smartControlGrid"><label class="smartControl"><span>Dinamikus fényerő<br><small>Settings · cfgDynOn</small></span><input type="checkbox" id="smartDynOn"></label><label class="smartControl"><span>Mood dynamic<br><small>Settings · cfgMoodDyn</small></span><input type="checkbox" id="smartMoodDyn"></label><label class="smartControl"><span>TV brightness follow<br><small>TV · cfgTvBSync</small></span><input type="checkbox" id="smartTvBri"></label></div><div class="smartCtlNote">A kapcsolók a már létező firmware-beállításokat vezérlik. A megjelenített elemzési értékek relatív dimenziómentes %-ok; a képkockasebesség Hz, a feldolgozási idő ms.</div><div class="btnRow"><button class="btn btnSave btnSm" onclick="saveConfig()">💾 Mentés firmware-be</button><button class="btn btnDim btnSm" onclick="document.querySelector('[data-page=\"settings\"]').click()">⚙️ Részletes beállítások</button></div></div><div class="g2" style="margin-top:14px">
     <div class="card"><div class="cardHead"><span class="cardIcon">🎬</span><h3>Scene <b>Analyzer</b></h3></div><div id="scenePanel"></div></div>
     <div class="card"><div class="cardHead"><span class="cardIcon">🎛️</span><h3>Adaptive <b>Controller</b></h3></div><div id="adaptivePanel"></div></div>
   </div>
@@ -360,7 +359,7 @@ padding:30px 32px;max-width:460px;width:calc(100% - 36px);box-shadow:0 40px 90px
     </div>
     <div class="card"><div class="cardHead"><span class="cardIcon">🪞</span><h3>Side <b>Clone</b></h3></div>
       <div class="checkRow"><input type="checkbox" id="cfgCloneOn"><label>Side Clone engedélyezése</label></div>
-      <div class="rangeRow"><label style="min-width:70px">Fényerő</label><input type="range" id="cfgCloneBri" min="0" max="255" value="255"><span id="cfgCloneBriV">255</span></div>
+      <div class="rangeRow"><label style="min-width:70px">Fényerő</label><input type="range" id="cfgCloneBri" min="0" max="100" value="100"><span id="cfgCloneBriV">100 %</span></div>
       <div class="frow"><div><label>Bal start</label><input type="number" id="cfgCloneLS" min="0" max="119" value="30"></div><div><label>Bal db</label><input type="number" id="cfgCloneLC" min="0" max="120" value="30"></div></div>
       <div class="frow"><div><label>Jobb start</label><input type="number" id="cfgCloneRS" min="0" max="119" value="90"></div><div><label>Jobb db</label><input type="number" id="cfgCloneRC" min="0" max="120" value="30"></div></div>
       <div class="checkRow"><input type="checkbox" id="cfgCloneLR"><label>Bal fordított</label></div>
@@ -387,15 +386,16 @@ padding:30px 32px;max-width:460px;width:calc(100% - 36px);box-shadow:0 40px 90px
   </div>
   <div class="g2" style="margin-top:14px">
     <div class="card"><div class="cardHead"><span class="cardIcon">🔆</span><h3><b>Fényerő & Simítás</b></h3></div>
-      <div class="rangeRow"><label style="min-width:80px">Fényerő</label><input type="range" id="cfgBri" min="0" max="255" value="160"><span id="cfgBriV">160</span></div>
-      <div class="rangeRow"><label style="min-width:80px">Simítás</label><input type="range" id="cfgSmooth" min="0" max="100" value="70"><span id="cfgSmoothV">70</span></div>
-      <div class="rangeRow"><label style="min-width:80px">Fekete küszöb</label><input type="range" id="cfgBlack" min="0" max="100" value="4"><span id="cfgBlackV">4</span></div>
+      <div class="rangeRow"><label style="min-width:80px">Fényerő</label><input type="range" id="cfgBri" min="0" max="100" value="63"><span id="cfgBriV">63 %</span></div>
+      <div class="rangeRow"><label style="min-width:80px">Simítás</label><input type="range" id="cfgSmooth" min="0" max="100" value="70"><span id="cfgSmoothV">70 %</span></div>
+      <div class="rangeRow"><label style="min-width:80px">Fekete küszöb</label><input type="range" id="cfgBlack" min="0" max="255" value="4"><span id="cfgBlackV">4 / 255</span></div>
+      <div class="unitHint">A fényerő és simítás relatív érték. A fekete küszöb digitális RGB szint, ezért 0–255 tartományban marad.</div>
     </div>
     <div class="card"><div class="cardHead"><span class="cardIcon">📡</span><h3><b>Dinamikus fényerő</b></h3></div>
       <div class="checkRow"><input type="checkbox" id="cfgDynOn"><label>Engedélyezve</label></div>
-      <div class="frow3"><div><label>Min</label><input type="number" id="cfgDynMin" min="0" max="255" value="0"></div><div><label>Max</label><input type="number" id="cfgDynMax" min="0" max="255" value="255"></div><div><label>Válasz</label><input type="number" id="cfgDynResp" min="1" max="100" value="35"></div></div>
+      <div class="frow3"><div><label>Minimum</label><div class="unitField"><input type="number" id="cfgDynMin" min="0" max="100" value="0"><span class="unitSuffix">%</span></div></div><div><label>Maximum</label><div class="unitField"><input type="number" id="cfgDynMax" min="0" max="100" value="100"><span class="unitSuffix">%</span></div></div><div><label>Válasz</label><div class="unitField"><input type="number" id="cfgDynResp" min="0" max="100" value="35"><span class="unitSuffix">%</span></div></div></div>
       <div class="checkRow"><input type="checkbox" id="cfgMoodDyn"><label>Mood dinamikus fényerő</label></div>
-      <div class="rangeRow"><label style="min-width:80px">Mélység</label><input type="range" id="cfgMoodDep" min="0" max="100" value="25"><span id="cfgMoodDepV">25</span></div>
+      <div class="rangeRow"><label style="min-width:80px">Mélység</label><input type="range" id="cfgMoodDep" min="0" max="100" value="25"><span id="cfgMoodDepV">25 %</span></div>
     </div>
   </div>
   <div class="card" style="margin-top:14px"><div class="cardHead"><span class="cardIcon">📦</span><h3><b>OTA Firmware Frissítés</b></h3></div>
@@ -733,6 +733,8 @@ function updateMapperPreview(){
 
 /* ── Dash stats ─────────────────────────────────────────────────── */
 function renderDashboardOverview(s){const fw=$("heroFw"),led=$("heroLed"),seg=$("heroSeg"),tv=$("heroTV");if(fw)fw.textContent=s.firmware||"—";if(led)led.textContent="120";if(seg)seg.textContent=String(FIXED_MAPPER_SEGMENTS);if(tv)tv.textContent=s.tv_online?"ONLINE":"OFF";const g=$("dashTvGlow");if(g)g.style.boxShadow=s.tv_online?"0 0 32px rgba(48,209,88,.24)":"0 0 24px rgba(142,142,147,.14)"}
+function formatDuration(ms){let sec=Math.max(0,Math.floor(Number(ms||0)/1000)),d=Math.floor(sec/86400);sec%=86400;let h=Math.floor(sec/3600);sec%=3600;let m=Math.floor(sec/60);sec%=60;return d?d+" d "+h+" h":h?h+" h "+m+" min":m?m+" min "+sec+" s":sec+" s"}
+function formatBytesSI(bytes){const n=Math.max(0,Number(bytes)||0);if(n>=1000000)return(n/1000000).toFixed(2)+" MB";if(n>=1000)return(n/1000).toFixed(1)+" kB";return Math.round(n)+" B"}
 function renderStats(s){
   const st=$("dashStats");if(!st)return;
   renderDashboardOverview(s);
@@ -743,8 +745,8 @@ function renderStats(s){
     {l:"Good Frames",v:(s.good||0).toLocaleString(),c:"good"},
     {l:"Errors",v:(s.bad||0).toLocaleString(),c:s.bad>10?"warn":"good"},
     {l:"Firmware",v:s.firmware||"—",c:"accent"},
-    {l:"Uptime",v:Math.floor((s.uptime||0)/60000)+" min",c:"info"},
-    {l:"Free Heap",v:((s.free_heap||0)/1024).toFixed(1)+" KB",c:"accent"},
+    {l:"Üzemidő",v:formatDuration(s.uptime),c:"info"},
+    {l:"Szabad memória",v:formatBytesSI(s.free_heap),c:"accent"},
     {l:"Mood FX contract",v:(s.fx_contract_count||FX_COUNT)+"/"+FX_COUNT,c:(s.fx_contract_count===FX_COUNT)?"good":"warn"}
   ].map(x=>`<div class="statBox"><div class="statVal ${x.c}">${x.v}</div><div class="statLabel">${x.l}</div></div>`).join("");
 }
@@ -752,12 +754,12 @@ function renderDiag(s){
   $("diagGood").textContent=(s.good||0).toLocaleString();
   $("diagBad").textContent=(s.bad||0).toLocaleString();
   $("diagSeq").textContent=s.smart_seq||0;
-  $("diagFPS").textContent=fps_v;
+  $("diagFPS").textContent=fps_v+" Hz";
   $("diagError").textContent=s.last_error||"—";
   const si=$("sysInfo");if(si)si.innerHTML=[
     {l:"ESP IP",v:s.esp_ip||"—"},{l:"TV IP",v:s.tv_ip||"—"},{l:"Firmware",v:s.firmware||"—"},
-    {l:"Schema",v:s.schema||"—"},{l:"RSSI",v:(s.rssi||0)+" dBm"},{l:"Uptime",v:Math.floor((s.uptime||0)/60000)+" min"},
-    {l:"Free Heap",v:((s.free_heap||0)/1024).toFixed(1)+" KB"},{l:"WS Port",v:s.ws_port||81},{l:"HTTP Port",v:s.http_port||8080}
+    {l:"Schema",v:s.schema||"—"},{l:"RSSI",v:(s.rssi||0)+" dBm"},{l:"Üzemidő",v:formatDuration(s.uptime)},
+    {l:"Szabad memória",v:formatBytesSI(s.free_heap)},{l:"WS port",v:s.ws_port||81},{l:"HTTP port",v:s.http_port||8080}
   ].map(x=>`<div class="statBox"><div class="statVal info" style="font-size:18px">${x.v}</div><div class="statLabel">${x.l}</div></div>`).join("");
 }
 
@@ -768,6 +770,7 @@ function renderScene(sc){
     <div class="meterLabel"><span>Telítettség</span><span>${Math.round(sc.saturation)}%</span></div><div class="meterBar"><div class="meterFill saturation" style="width:${Math.round(sc.saturation)}%"></div></div>
     <div class="meterLabel"><span>Mozgás</span><span>${Math.round(sc.motion)}%</span></div><div class="meterBar"><div class="meterFill motion" style="width:${Math.round(sc.motion)}%"></div></div>
     <div class="meterLabel"><span>Energia</span><span>${Math.round(sc.energy)}%</span></div><div class="meterBar"><div class="meterFill energy" style="width:${Math.round(sc.energy)}%"></div></div>
+    <div class="meterLabel"><span>Jelenetváltozás</span><span>${Math.round(sc.sceneChange??0)}%</span></div><div class="meterBar"><div class="meterFill motion" style="width:${Math.round(sc.sceneChange??0)}%"></div></div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
       <span style="font-size:10px;color:var(--muted)">Domináns:</span>
       <span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:rgb(${sc.dominantColor.r},${sc.dominantColor.g},${sc.dominantColor.b})"></span>
@@ -793,7 +796,7 @@ function renderZoneAnalysis(sc){
 function renderEngineStatus(){
   const p=$("engineStatus");if(!p)return;
   p.innerHTML=`
-    <div class="statBox"><div class="statVal info">${fps_v}</div><div class="statLabel">FPS</div></div>
+    <div class="statBox"><div class="statVal info">${fps_v} Hz</div><div class="statLabel">Képfrissítés</div></div>
     <div style="margin-top:8px;font-size:11px;color:var(--soft)">
       <div>Mód: <b style="color:var(--cyan)">SMART PRO</b></div>
       <div>Pipeline: <b style="color:var(--green)">${pipeline?pipeline.stats.accepted:0} accepted</b></div>
@@ -841,19 +844,21 @@ function normalizeState(s){
     zones:s.zones||[]
   };
 }
+function pctFrom255(v){return Math.round(Math.max(0,Math.min(255,Number(v)||0))*100/255)}
+function raw255FromPct(v){return Math.round(Math.max(0,Math.min(100,Number(v)||0))*255/100)}
 function applyConfig(raw){
   const s=normalizeState(raw);
   config={...(config||{}),...s};
   setVal("cfgTvIP",s.tv_ip||"");$("cfgTvSync").checked=!!s.tv_sync;$("cfgTvBSync").checked=!!s.tv_bsync;
-  $("cfgCloneOn").checked=!!s.clone_on;setVal("cfgCloneBri",s.clone_bri??255);$("cfgCloneBriV").textContent=s.clone_bri??255;
+  $("cfgCloneOn").checked=!!s.clone_on;setVal("cfgCloneBri",pctFrom255(s.clone_bri??255));$("cfgCloneBriV").textContent=pctFrom255(s.clone_bri??255)+" %";
   setVal("cfgCloneLS",s.clone_l_start??30);setVal("cfgCloneLC",s.clone_l_count??30);
   setVal("cfgCloneRS",s.clone_r_start??90);setVal("cfgCloneRC",s.clone_r_count??30);
   $("cfgCloneLR").checked=!!s.clone_l_rev;$("cfgCloneRR").checked=!!s.clone_r_rev;
-  setVal("cfgBri",s.brightness??160);$("cfgBriV").textContent=s.brightness??160;
-  setVal("cfgSmooth",s.smoothing??70);$("cfgSmoothV").textContent=s.smoothing??70;
-  setVal("cfgBlack",s.black_threshold??4);$("cfgBlackV").textContent=s.black_threshold??4;
-  $("cfgDynOn").checked=!!s.dyn_on;setVal("cfgDynMin",s.dyn_min??0);setVal("cfgDynMax",s.dyn_max??255);setVal("cfgDynResp",s.dyn_resp??35);
-  $("cfgMoodDyn").checked=!!s.mood_dyn;setVal("cfgMoodDep",s.mood_dep??25);$("cfgMoodDepV").textContent=s.mood_dep??25;
+  setVal("cfgBri",pctFrom255(s.brightness??160));$("cfgBriV").textContent=pctFrom255(s.brightness??160)+" %";
+  setVal("cfgSmooth",s.smoothing??70);$("cfgSmoothV").textContent=(s.smoothing??70)+" %";
+  setVal("cfgBlack",s.black_threshold??4);$("cfgBlackV").textContent=(s.black_threshold??4)+" / 255";
+  $("cfgDynOn").checked=!!s.dyn_on;setVal("cfgDynMin",pctFrom255(s.dyn_min??0));setVal("cfgDynMax",pctFrom255(s.dyn_max??255));setVal("cfgDynResp",s.dyn_resp??35);
+  $("cfgMoodDyn").checked=!!s.mood_dyn;setVal("cfgMoodDep",s.mood_dep??25);$("cfgMoodDepV").textContent=(s.mood_dep??25)+" %";
   if($("smartDynOn"))$("smartDynOn").checked=!!s.dyn_on;if($("smartMoodDyn"))$("smartMoodDyn").checked=!!s.mood_dyn;if($("smartTvBri"))$("smartTvBri").checked=!!s.tv_bsync;
   $("moodLinkSel").value=s.mood_link??0;
   setVal("cfgWifiSSID",s.wifi_ssid||"");setVal("cfgWifiPass",s.wifi_pass||"");
@@ -872,27 +877,27 @@ function moodForm(side){
 <div><label>Effekt</label><select id="m_${side}_eff">${EFFECTS.map((e,i)=>`<option value="${i}">${e}</option>`).join("")}</select></div>
 <div class="checkRow"><input type="checkbox" id="m_${side}_auto"><label>Auto szín (TV)</label></div>
 <div class="rangeRow"><label style="min-width:60px">Hue</label><input type="range" id="m_${side}_hue" min="0" max="360" value="210"><span id="m_${side}_hueV">210°</span></div>
-<div class="frow3"><div class="rangeRow"><label>Sat</label><input type="range" id="m_${side}_sat" min="0" max="255" value="220"><span id="m_${side}_satV" style="font-size:9px">220</span></div><div class="rangeRow"><label>Bri</label><input type="range" id="m_${side}_bri" min="0" max="255" value="110"><span id="m_${side}_briV" style="font-size:9px">110</span></div><div class="rangeRow"><label>Speed</label><input type="range" id="m_${side}_sp" min="1" max="100" value="28"><span id="m_${side}_spV" style="font-size:9px">28</span></div></div>
+<div class="frow3"><div class="rangeRow"><label>Telítettség</label><input type="range" id="m_${side}_sat" min="0" max="100" value="86"><span id="m_${side}_satV" style="font-size:9px">86 %</span></div><div class="rangeRow"><label>Fényerő</label><input type="range" id="m_${side}_bri" min="0" max="100" value="43"><span id="m_${side}_briV" style="font-size:9px">43 %</span></div><div class="rangeRow"><label>Sebesség</label><input type="range" id="m_${side}_sp" min="0" max="100" value="28"><span id="m_${side}_spV" style="font-size:9px">28 %</span></div></div>
 <div><label>Paletta</label><select id="m_${side}_pal">${PALETTES.map((e,i)=>`<option value="${i}">${e}</option>`).join("")}</select></div>
-<div class="frow3"><div class="rangeRow"><label>Scale</label><input type="range" id="m_${side}_sc" min="1" max="100" value="70"><span id="m_${side}_scV" style="font-size:9px">70</span></div><div class="rangeRow"><label>Motion</label><input type="range" id="m_${side}_mot" min="0" max="100" value="65"><span id="m_${side}_motV" style="font-size:9px">65</span></div><div class="rangeRow"><label>Glow</label><input type="range" id="m_${side}_gl" min="0" max="100" value="75"><span id="m_${side}_glV" style="font-size:9px">75</span></div></div>
-<div class="frow3"><div class="rangeRow"><label>Density</label><input type="range" id="m_${side}_den" min="0" max="100" value="55"><span id="m_${side}_denV" style="font-size:9px">55</span></div><div class="rangeRow"><label>Turb</label><input type="range" id="m_${side}_tur" min="0" max="100" value="45"><span id="m_${side}_turV" style="font-size:9px">45</span></div><div><label>Színmód</label><select id="m_${side}_cm"><option value="0">Paletta</option><option value="1">Fix hue</option><option value="2">Auto TV</option><option value="3">Hue gradiens</option></select></div></div>
+<div class="frow3"><div class="rangeRow"><label>Skála</label><input type="range" id="m_${side}_sc" min="0" max="100" value="70"><span id="m_${side}_scV" style="font-size:9px">70 %</span></div><div class="rangeRow"><label>Mozgás</label><input type="range" id="m_${side}_mot" min="0" max="100" value="65"><span id="m_${side}_motV" style="font-size:9px">65 %</span></div><div class="rangeRow"><label>Fényudvar</label><input type="range" id="m_${side}_gl" min="0" max="100" value="75"><span id="m_${side}_glV" style="font-size:9px">75 %</span></div></div>
+<div class="frow3"><div class="rangeRow"><label>Sűrűség</label><input type="range" id="m_${side}_den" min="0" max="100" value="55"><span id="m_${side}_denV" style="font-size:9px">55 %</span></div><div class="rangeRow"><label>Örvénylés</label><input type="range" id="m_${side}_tur" min="0" max="100" value="45"><span id="m_${side}_turV" style="font-size:9px">45 %</span></div><div><label>Színmód</label><select id="m_${side}_cm"><option value="0">Paletta</option><option value="1">Fix hue</option><option value="2">Auto TV</option><option value="3">Hue gradiens</option></select></div></div>
 <div class="checkRow"><input type="checkbox" id="m_${side}_rev"><label>Fordított</label></div>`;
 }
 function applyMood(side,m){
   if(!m)return;$("m_"+side+"_on").checked=m.mode>0;$("m_"+side+"_eff").value=m.effect??12;$("m_"+side+"_auto").checked=!!m.auto;
   setVal("m_"+side+"_hue",m.hue??210);$("m_"+side+"_hueV").textContent=(m.hue??210)+"°";
-  setVal("m_"+side+"_sat",m.sat??220);$("m_"+side+"_satV").textContent=m.sat??220;
-  setVal("m_"+side+"_bri",m.bri??110);$("m_"+side+"_briV").textContent=m.bri??110;
-  setVal("m_"+side+"_sp",m.speed??28);$("m_"+side+"_spV").textContent=m.speed??28;
+  setVal("m_"+side+"_sat",pctFrom255(m.sat??220));$("m_"+side+"_satV").textContent=pctFrom255(m.sat??220)+" %";
+  setVal("m_"+side+"_bri",pctFrom255(m.bri??110));$("m_"+side+"_briV").textContent=pctFrom255(m.bri??110)+" %";
+  setVal("m_"+side+"_sp",m.speed??28);$("m_"+side+"_spV").textContent=(m.speed??28)+" %";
   $("m_"+side+"_pal").value=m.pal??(side==="left"?0:1);
-  setVal("m_"+side+"_sc",m.scale??70);$("m_"+side+"_scV").textContent=m.scale??70;
-  setVal("m_"+side+"_mot",m.motion??65);$("m_"+side+"_motV").textContent=m.motion??65;
-  setVal("m_"+side+"_gl",m.glow??75);$("m_"+side+"_glV").textContent=m.glow??75;
-  setVal("m_"+side+"_den",m.density??55);$("m_"+side+"_denV").textContent=m.density??55;
-  setVal("m_"+side+"_tur",m.turb??45);$("m_"+side+"_turV").textContent=m.turb??45;
+  setVal("m_"+side+"_sc",m.scale??70);$("m_"+side+"_scV").textContent=(m.scale??70)+" %";
+  setVal("m_"+side+"_mot",m.motion??65);$("m_"+side+"_motV").textContent=(m.motion??65)+" %";
+  setVal("m_"+side+"_gl",m.glow??75);$("m_"+side+"_glV").textContent=(m.glow??75)+" %";
+  setVal("m_"+side+"_den",m.density??55);$("m_"+side+"_denV").textContent=(m.density??55)+" %";
+  setVal("m_"+side+"_tur",m.turb??45);$("m_"+side+"_turV").textContent=(m.turb??45)+" %";
   $("m_"+side+"_cm").value=m.cm??2;$("m_"+side+"_rev").checked=!!m.rev;
 }
-function colMood(side){return{mode:$("m_"+side+"_on").checked?1:0,effect:+$("m_"+side+"_eff").value,auto:$("m_"+side+"_auto").checked,hue:+$("m_"+side+"_hue").value,sat:+$("m_"+side+"_sat").value,bri:+$("m_"+side+"_bri").value,speed:+$("m_"+side+"_sp").value,pal:+$("m_"+side+"_pal").value,scale:+$("m_"+side+"_sc").value,motion:+$("m_"+side+"_mot").value,glow:+$("m_"+side+"_gl").value,density:+$("m_"+side+"_den").value,turb:+$("m_"+side+"_tur").value,cm:+$("m_"+side+"_cm").value,rev:$("m_"+side+"_rev").checked}}
+function colMood(side){return{mode:$("m_"+side+"_on").checked?1:0,effect:+$("m_"+side+"_eff").value,auto:$("m_"+side+"_auto").checked,hue:+$("m_"+side+"_hue").value,sat:raw255FromPct($("m_"+side+"_sat").value),bri:raw255FromPct($("m_"+side+"_bri").value),speed:+$("m_"+side+"_sp").value,pal:+$("m_"+side+"_pal").value,scale:+$("m_"+side+"_sc").value,motion:+$("m_"+side+"_mot").value,glow:+$("m_"+side+"_gl").value,density:+$("m_"+side+"_den").value,turb:+$("m_"+side+"_tur").value,cm:+$("m_"+side+"_cm").value,rev:$("m_"+side+"_rev").checked}}
 
 /* ── Segments ───────────────────────────────────────────────────── */
 const SIDES=["BOTTOM (0–29)","LEFT (30–59)","TOP (60–89)","RIGHT (90–119)"];
@@ -937,11 +942,11 @@ function collectSegs(){
 }
 function collectCfg(){
   return {
-    brightness:+$("cfgBri").value,smoothing:+$("cfgSmooth").value,black_threshold:+$("cfgBlack").value,
-    dyn_on:$("cfgDynOn").checked,dyn_min:+$("cfgDynMin").value,dyn_max:+$("cfgDynMax").value,dyn_resp:+$("cfgDynResp").value,
+    brightness:raw255FromPct($("cfgBri").value),smoothing:+$("cfgSmooth").value,black_threshold:+$("cfgBlack").value,
+    dyn_on:$("cfgDynOn").checked,dyn_min:raw255FromPct($("cfgDynMin").value),dyn_max:raw255FromPct($("cfgDynMax").value),dyn_resp:+$("cfgDynResp").value,
     mood_dyn:$("cfgMoodDyn").checked,mood_dep:+$("cfgMoodDep").value,
     tv_sync:$("cfgTvSync").checked,tv_bsync:$("cfgTvBSync").checked,
-    clone_on:$("cfgCloneOn").checked,clone_bri:+$("cfgCloneBri").value,
+    clone_on:$("cfgCloneOn").checked,clone_bri:raw255FromPct($("cfgCloneBri").value),
     clone_l_start:+$("cfgCloneLS").value,clone_l_count:+$("cfgCloneLC").value,
     clone_r_start:+$("cfgCloneRS").value,clone_r_count:+$("cfgCloneRC").value,
     clone_l_rev:$("cfgCloneLR").checked,clone_r_rev:$("cfgCloneRR").checked,
@@ -1042,8 +1047,8 @@ $$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
 }));
 
 /* ── Live range updates ─────────────────────────────────────────── */
-["cfgBri","cfgSmooth","cfgBlack","cfgMoodDep","cfgCloneBri"].forEach(id=>$(id)?.addEventListener("input",()=>{const v=$(id).value;const e=$(id+"V");if(e)e.textContent=v}));
-["left","right"].forEach(s=>["hue","sat","bri","sp","sc","mot","gl","den","tur"].forEach(p=>$("m_"+s+"_"+p)?.addEventListener("input",()=>{const v=$("m_"+s+"_"+p).value;const e=$("m_"+s+"_"+p+"V");if(e)e.textContent=p==="hue"?v+"°":v})));
+["cfgBri","cfgSmooth","cfgMoodDep","cfgCloneBri"].forEach(id=>$(id)?.addEventListener("input",()=>{const v=$(id).value;const e=$(id+"V");if(e)e.textContent=v+" %"}));$("cfgBlack")?.addEventListener("input",()=>{const e=$("cfgBlackV");if(e)e.textContent=$("cfgBlack").value+" / 255"});
+["left","right"].forEach(s=>["hue","sat","bri","sp","sc","mot","gl","den","tur"].forEach(p=>$("m_"+s+"_"+p)?.addEventListener("input",()=>{const v=$("m_"+s+"_"+p).value;const e=$("m_"+s+"_"+p+"V");if(e)e.textContent=p==="hue"?v+"°":v+" %"})));
 
 /* ── Init ───────────────────────────────────────────────────────── */
 $("moodLeftForm").innerHTML=moodForm("left");$("moodRightForm").innerHTML=moodForm("right");$("smartDynOn")?.addEventListener("change",e=>{if($("cfgDynOn"))$("cfgDynOn").checked=e.target.checked});$("smartMoodDyn")?.addEventListener("change",e=>{if($("cfgMoodDyn"))$("cfgMoodDyn").checked=e.target.checked});$("smartTvBri")?.addEventListener("change",e=>{if($("cfgTvBSync"))$("cfgTvBSync").checked=e.target.checked});renderSegs(canonicalMapperDefaults());renderScene({brightness:0,saturation:0,motion:0,energy:0,dominantColor:{r:0,g:0,b:0},dominantHue:0,warmCool:0,zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});renderAdaptive({brightness:50,speed:50,reaction:50,sceneType:"NORMAL"});renderZoneAnalysis({zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});
