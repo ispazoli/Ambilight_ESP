@@ -554,6 +554,7 @@ let espIP=localStorage.getItem("ab_ip")||"",auth=localStorage.getItem("ab_auth")
 let espHost="",espPort=8080,wsPort=81,ws=null,wsTO=null,pollTO=null,config=null,fps_f=0,fps_t=performance.now(),fps_v=0,wsRetryMs=1000;
 let mapperSources=[],mapperMaxSegments=12;
 const SRC_FALLBACK=["BLACK","L0","L1","R0","R1","L_AVG","R_AVG","ALL_AVG","LR_TOP","LR_BOT","VERT_AVG","L0R0_BL","L1R1_BL","GRAD_TOP","GRAD_RIGHT","GRAD_BOT","GRAD_LEFT"];
+const ghPagesPreview=location.hostname.endsWith(".github.io") || location.hostname.endsWith(".githubusercontent.com") || location.pathname.includes("/Ambilight_ESP/");
 let securePage=location.protocol==="https:";
 let localESPPage=location.protocol==="http:" && (location.port==="8080" || location.hostname==="ambilight.local");
 function normalizeESP(v){
@@ -588,6 +589,7 @@ engine.on("update",r=>{
 /* ── API ────────────────────────────────────────────────────────── */
 function apiH(h){return {...h||{},...(auth?{Authorization:auth}:{})}}
 async function api(p,o={}){
+  if(ghPagesPreview)throw Error("GitHub Pages preview — firmware kapcsolat kikapcsolva");
   const u=apiUrl(p);if(!u)throw Error("No IP");
   const r=await fetch(u,{...o,cache:"no-store",headers:apiH(o.headers||{})});
   if(r.status===401&&!auth){const pw=prompt("Web auth jelszó:","ambilight");if(pw){auth="Basic "+btoa("admin:"+pw);localStorage.setItem("ab_auth",auth);return api(p,o)}}
@@ -1052,14 +1054,16 @@ if(localESPPage){
   espIP=espHost+(espPort!==8080?":"+espPort:"");
   $("connectModal").style.display="none";
   loadAll();
+}else if(ghPagesPreview){
+  $("connectModal").style.display="none";
+  updateConn(true,false);
 }else if(espIP && !securePage){
   try{setESPAddress(espIP);loadAll()}catch(e){$("connectModal").style.display="flex"}
 }else $("connectModal").style.display="flex";
-if(securePage){$("modalIP").value=localStorage.getItem("ab_ip")||"192.168.1.228";}
-setInterval(async()=>{if(!espHost||securePage)return;try{const s=await apiGet("/api/state");config={...config,...normalizeState(s)};updateConn(true,config.tv_online);renderStats(config);renderDiag(config)}catch(e){updateConn(false)}},8000);
+if(securePage&&!ghPagesPreview){$("modalIP").value=localStorage.getItem("ab_ip")||"192.168.1.228";}
+setInterval(async()=>{if(ghPagesPreview||!espHost||securePage)return;try{const s=await apiGet("/api/state");config={...config,...normalizeState(s)};updateConn(true,config.tv_online);renderStats(config);renderDiag(config)}catch(e){updateConn(false)}},8000);
 console.log("🚀 Ambilight Bridge v5.0 · Full Smart Engine · Ready");
 </script>
 <script src="preview-demo.js"></script>
-</script>
 </body>
 </html>
