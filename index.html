@@ -245,6 +245,56 @@ input[type=range]::-webkit-slider-thumb{
 @media(max-width:860px){
   .contentHeader{backdrop-filter:saturate(180%) blur(18px)}
 }
+
+/* Typography / sidebar readability refinement */
+body,button,input,select,textarea{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  letter-spacing:-.012em;
+}
+h1,h2,h3,h4,.statVal,.sideBrand strong,.profileText b,.deviceRow b{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Arial,sans-serif;
+}
+.sidebar{
+  font-size:12px;
+}
+.sideBrand strong{font-size:15px;font-weight:650}
+.sideBrand span{font-size:9px}
+.profileCard{padding:10px}
+.profileText b{font-size:11.5px;font-weight:600}
+.profileText span{font-size:9px}
+.sideLabel{font-size:9px;padding-bottom:8px}
+.navBtn{
+  font-size:12px;
+  font-weight:600;
+  line-height:1.35;
+  padding:10px 11px;
+  gap:10px;
+}
+.navGlyph{font-size:15px;width:19px}
+.navPill{font-size:8px;padding:3px 6px}
+.connectionCard{padding:11px}
+.connectionTop{font-size:11px}
+.connectionCard>span{font-size:9px}
+.helpLink{font-size:10px}
+.versionLine{font-size:9px}
+.headerTitles h1{font-weight:600}
+.headerTitles p{font-size:11px}
+.cardHead h3{font-size:10.5px}
+.cardHead h3 b{font-weight:600}
+.cardSub{font-size:10px}
+.statLabel{font-size:9.5px}
+.statMeta{font-size:9px}
+.btn{font-size:10px;font-weight:600}
+.miniSelect{font-size:10px}
+.zoneDashboard .zoneData{font-size:9px}
+.zoneDashboard .zoneData strong{font-size:11px;font-weight:600}
+.deviceRow{font-size:10px}
+.deviceRow b{font-size:10.5px;font-weight:600}
+.deviceRow small{font-size:9px}
+@media(max-width:560px){
+  .navBtn{font-size:12px}
+  .profileText b{font-size:11px}
+}
 </style>
 </head>
 <body>
