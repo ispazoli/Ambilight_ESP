@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f3f4f6">
+<meta name="ambilight-preview-version" content="20260922-pro-v3">
 <meta name="description" content="Ambilight Bridge UI Preview — simulated ESP32-C3 / WS2815 Smart Control Center.">
 <title>Ambilight Bridge · Smart Engine Preview</title>
 <style>
@@ -439,7 +440,7 @@ input[type=checkbox]{accent-color:#007aff}.segRow{border-color:transparent}.segR
 </style>
 <style id="pro-control-preview">
 /* ═══════════════════════════════════════════════════════════════════
-   PRO CONTROL CENTER v2 — PREVIEW ONLY
+   PRO CONTROL CENTER v3 — CACHE BUSTED PREVIEW
    Full-page visual harmonization. No runtime/API behavior changes.
    ═══════════════════════════════════════════════════════════════════ */
 :root{
@@ -588,7 +589,7 @@ input[type=checkbox]{width:15px!important;height:15px!important;accent-color:var
   .segRow{grid-template-columns:62px minmax(0,1fr) 48px 26px!important}
 }
 </style>
-</head><body>
+<style id="preview-cache-bust">/* CACHE-BUSTED PREVIEW */body{--preview-version:'20260922-pro-v3'}.app{outline:0}.topbar{box-shadow:0 2px 12px rgba(16,24,40,.07)!important}.page.active{animation:pcPageIn .18s ease-out both!important}@keyframes pcPageIn{from{opacity:.96;transform:translateY(2px)}to{opacity:1;transform:none}}</style></head><body>
 <script src="./preview-demo-api.js?v=20260922-3"></script>
 <div id="previewBadgeStatic" style="position:fixed;right:14px;bottom:14px;z-index:10000;padding:8px 12px;border-radius:999px;background:#1d1d1f;color:#fff;font:600 10px system-ui;letter-spacing:.5px;box-shadow:0 4px 18px rgba(0,0,0,.18)">UI PREVIEW · ESP32 NÉLKÜL</div>
 
