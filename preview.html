@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#060d18">
 <meta name="description" content="Ambilight Bridge — ESP32-C3 Smart Control Center. Philips Ambilight TV backlight + WS2815 LED control with Smart Engine scene analysis.">
-<title>Ambilight Bridge · Smart Control Center</title>
+<title>Ambilight Bridge · UI Preview</title>
 <style>
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
 AMBILIGHT BRIDGE — MODERNIZED DESIGN SYSTEM v6.0
@@ -471,17 +471,6 @@ input[type=checkbox]{accent-color:#007aff}
   <div class="card" style="margin-top:14px"><div class="cardHead"><span class="cardIcon">🔧</span><h3><b>ESP32 Rendszer</b></h3></div><div class="g3" id="sysInfo"></div></div>
 </section>
 
-<!-- ═══════════════ CONNECT MODAL ═══════════════ -->
-<div class="modalOverlay" id="connectModal">
-  <div class="modalBox">
-    <h2>🔌 Kapcsolódás az ESP32‑höz</h2>
-    <p>Az ESP32 közvetlenül HTTP-n szolgálja ki a vezérlőt. GitHub Pages HTTPS-ről a böngésző a helyi HTTP API-t blokkolhatja. Ilyenkor nyisd meg ezt a vezérlőt közvetlenül az ESP32-ről: <code>http://ESP:8080</code>.</p>
-    <label>ESP32 IP-cím</label><input id="modalIP" placeholder="192.168.1.100 vagy ambilight.local">
-    <label>Web Auth jelszó</label><input id="modalAuth" type="password" placeholder="ambilight">
-    <div class="btnRow" style="justify-content:flex-end"><button class="btn" onclick="doConnect()">Kapcsolódás</button></div>
-  </div>
-</div>
-
 <!-- ═══════════════ TOAST ═══════════════ -->
 <div class="toast" id="toast"></div>
 </div>
@@ -646,7 +635,7 @@ function apiH(h){return {...h||{},...(auth?{Authorization:auth}:{})}}
 async function api(p,o={}){
   const u=apiUrl(p);if(!u)throw Error("No IP");
   const r=await fetch(u,{...o,cache:"no-store",headers:apiH(o.headers||{})});
-  if(r.status===401&&!auth){const pw=prompt("Web auth jelszó:","ambilight");if(pw){auth="Basic "+btoa("admin:"+pw);localStorage.setItem("ab_auth",auth);return api(p,o)}}
+  if(r.status===401&&!auth&&!window.__AMBILIGHT_PREVIEW__){const pw=prompt("Web auth jelszó:","ambilight");if(pw){auth="Basic "+btoa("admin:"+pw);localStorage.setItem("ab_auth",auth);return api(p,o)}}
   return r;
 }
 async function responseError(r,path){
@@ -762,7 +751,7 @@ async function loadAll(){
     const s=await apiGet("/api/state");config={...cap,...normalizeState(s)};
     applyConfig(s);$("connectModal").style.display="none";updateConn(true,config.tv_online);
     if(!ws)startWS();startPoll();
-  }catch(e){$("connectModal").style.display="flex";updateConn(false)}
+  }catch(e){const m=$("connectModal");if(m)m.style.display="flex";updateConn(false);if(window.__AMBILIGHT_PREVIEW__)console.warn("[PREVIEW] loadAll:",e)}
 }
 
 /* ── UI Updates ─────────────────────────────────────────────────── */
