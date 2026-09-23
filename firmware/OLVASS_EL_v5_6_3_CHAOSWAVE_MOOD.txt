@@ -1,0 +1,103 @@
+
+AMBILIGHT BRIDGE v5.6.3-C3-CHAOSWAVE-MOOD — feltölthető projekt
+====================================================================
+
+ÚJ v5.6.3-ban (turbulencia-javítás)
+-----------------------------------
+- Az Örvénylés (Turbulence) csúszka MOSTANTÓL 8 zaj-alapú effektre hat,
+  nem csak NEBULA + PLASMA X-re: FIRE, FIRE 2, ORGANIC FLOW, LAVA LAMP,
+  STARFIELD, TWINKLE is turbulencia-vezérelt.
+- Új moodTurb8() segédfüggvény: a turbulencia a zaj TÉRBELI FREKVENCIÁJÁT
+  (káosz/részletesség) modulálja, az amplitúdót változatlanul hagyva —
+  ezért a küszöb-alapú effektek (TWINKLE/STARFIELD) sűrűsége is helyes
+  marad (a Sűrűség továbbra is a csillag-mennyiséget vezérli).
+- FIRMWARE_VERSION = 5.6.3-C3-CHAOSWAVE-MOOD
+- CONFIG_SCHEMA_VERSION 11 változatlan; NINCS NVS-, REST- vagy Mood-ID
+  változás — teljesen kompatibilis a v5.6.2-vel.
+- Ellenőrzés: node --check OK, parity OK, kapcsos zárójel 329/329,
+  HTML id 107 / dup 0, 23/23 Mood case.
+- Firmware fordítás itt NEM futott — USB-n fordítsd/teszteld flash előtt.
+
+--------------------------------------------------------------------
+
+AMBILIGHT BRIDGE v5.6.2-C3-MOOD-ENGINE — feltölthető projekt
+====================================================================
+
+Ez az egyesített (MERGED) csomag. A "PROPOSED" javasolt csomag jó
+firmware-javításait tartalmazza, DE a benne lévő végzetes UI-hiba
+javítva: a duplikált escHtml eltávolítva, így a JavaScript ismét
+hibátlanul lefut és a Control Center működik.
+
+Miért kellett egyesíteni
+-----------------------
+- A PROPOSED csomag "kijavította" a nem létező P0-t (hiányzó escHtml)
+  úgy, hogy hozzáadott egy function escHtml()-t — de az escHtml már
+  létezett const formában. Két deklaráció ugyanabban a <script>-ben
+  → SyntaxError: Identifier 'escHtml' has already been declared
+  → az EGÉSZ UI script eldobva → halott oldal.
+- Ebben a MERGED csomagban CSAK EGY escHtml van (const, 441. sor).
+
+Belekerültek a PROPOSED jó firmware-javításai
+---------------------------------------------
+- Uptime: uptime_s (másodperc) + UI formatDurationSeconds() (s/min/h/d).
+- Mood Dynamic Brightness VALÓBAN hat: effectiveMoodBrightness()
+  (jelenet-luminancia + moodDynDepth).
+- Diagnostics: /api/state küldi smart_seq, last_error mezőket.
+- TV-status poll ROTÁLVA: 1 JointSPACE endpoint / ~1.25 s (nincs
+  4-kéréses blokk a loopban).
+- Ambilight polling: TV_FRAME_INTERVAL_MS 50 → 100 ms (a mért ~10–11 Hz
+  TV-frissítéshez igazodva).
+- 3-állapotú TV power modell: tv_power="unknown" + tv_signal +
+  tv_power_reason + tv_output_off (nincs kitalált POWER állapot).
+- Read API auth: /api/state, /realtime, /capabilities, /topology
+  webAuthCheck mögött; /api/scan provisioning miatt nyitva. A UI 401-re
+  bekéri a jelszót és Basic auth-tal újrapróbál (apiH/api()).
+- SI / human-readable UI-egységek (%, °, Hz, idő), a firmware belső
+  0–255 reprezentációt kap vissza.
+- "TV fényerő követése" letiltva/dokumentálva (v1 API-n nem támogatott).
+
+Szándékosan NEM beépített (változatlan)
+---------------------------------------
+- Valódi JointSPACE persistent/stream (a TV keep-alive nem stabil).
+- Valódi TV POWER detektálás (/1/system/power = 404 ezen a TV-n).
+- Kelvin színhőmérséklet (nincs API-paraméter).
+- WebSocket Basic Auth (külön integrációs feladat).
+
+Ellenőrzés ebben a környezetben
+-------------------------------
+- JavaScript syntax: OK (node --check, nincs többé escHtml-ütközés).
+- embedded_ui.h ⇄ web/index.html: azonos (parity True), újragenerálva.
+- HTML id-k: 107, duplikátum: 0.
+- .ino kapcsos zárójelek: 328/328 kiegyensúlyozva.
+- Firmware fordítás: NEM futott (nincs Arduino/ESP32 toolchain itt) —
+  először USB-n fordítsd/teszteld, OTA-t ne használj vakon.
+
+Flash
+-----
+- arduino-cli, FQBN: esp32:esp32:esp32c3:PartitionScheme=min_spiffs
+- FIRMWARE_VERSION = 5.6.2-C3-MOOD-ENGINE
+- CONFIG_SCHEMA_VERSION = 11 (változatlan; nincs új NVS séma, autom. migráció)
+- FW_CONTRACT_VERSION = 1
+
+
+MOOD ENGINE 5.6.2 JAVÍTÁSOK
+============================
+- Mind a 23 Mood effekt saját renderelési ágat kapott.
+- Egységes sebességóra (3–80 BPM tartomány) minden animációhoz.
+- Palette: 24 beépített színpaletta/színárnyalat ténylegesen használva.
+- ColorMode: Palette / Fix hue / Auto TV / Hue gradiens működik.
+- Auto szín (TV): a bal/jobb TV-zónák átlagából számított HSV színforrás.
+- Reverse: bal és jobb Mood oldalon tényleges LED-index fordítás.
+- Scale / Glow / Turbulence / Density / Motion ténylegesen fogyasztva a rendererben.
+- Link módok (Independent/Mirror/Symmetric/Flow) megőrizve; Mirror/Symmetric/Flow esetén az Auto-TV színforrás is a linkelt oldalból származik.
+- NVS kulcsok, REST paraméternevek és Mood ID-k változatlanok; CONFIG_SCHEMA_VERSION 11 marad.
+- A web UI advanced Mood vezérlői már nem „n/a” állapotúak.
+
+ELLENŐRZÉS
+----------
+- Firmware kapcsos zárójelek: 328/328.
+- HTML ID-k: 107, duplikátum: 0.
+- UI JavaScript: node --check OK.
+- embedded_ui.h ⇄ web/index.html: parity OK.
+- 23/23 Mood case jelen van.
+- Arduino/ESP32 tényleges fordítás ebben a környezetben továbbra sem futott; ezt USB/Arduino IDE vagy arduino-cli alatt kell ellenőrizni a flash előtt.
