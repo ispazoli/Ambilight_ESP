@@ -36,8 +36,8 @@ if 'static const char AMBILIGHT_CC_HTML[] PROGMEM = R"AMB_CC_HTML(' in fw:
 ids = re.findall(r'id="([^"]+)"', html)
 if len(ids) != len(set(ids)):
     fail("duplicate HTML id detected")
-if len(ids) != 103:
-    fail(f"HTML ID count changed: expected 103, got {len(ids)}")
+if len(ids) != 107:
+    fail(f"HTML ID count changed: expected 107, got {len(ids)}")
 
 expected_endpoints = [
     "/api/auth", "/api/capabilities", "/api/config", "/api/ledtest",
@@ -127,6 +127,6 @@ print("PASS: single-source UI parity")
 print("  source/docs: identical")
 print("  source/embedded header: identical")
 print("  firmware: generated header included, duplicate UI absent")
-print("  HTML IDs: 103/103")
+print("  HTML IDs: 107/107")
 print("  Mood effects: 23/23")
 print("  API endpoint contract: present")
