@@ -162,15 +162,30 @@ label{display:block;font-size:10px;color:var(--muted);margin-bottom:4px;font-wei
 input,select{width:100%;padding:11px 13px;border-radius:var(--r-sm);border:1px solid var(--line);background:#fff;color:var(--text);font-size:13px;outline:none;font-family:inherit;transition:border .2s,box-shadow .2s}
 input:hover,select:hover{border-color:var(--line2)}
 input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,122,255,.14)}
-input[type=range]{padding:0;height:6px;-webkit-appearance:none;appearance:none;background:#dfe6f1;border-radius:4px;cursor:pointer;border:none}
+input[type=range]{padding:0;height:7px;-webkit-appearance:none;appearance:none;background:#dfe6f1;border-radius:999px;cursor:pointer;border:none;accent-color:var(--primary)}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;cursor:pointer;border:none;box-shadow:0 0 0 2px var(--primary),0 2px 6px rgba(28,52,94,.25);transition:transform .15s}
 input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.15)}
-input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;cursor:pointer;border:2px solid var(--primary)}
+input[type=range]::-moz-range-thumb{width:17px;height:17px;border-radius:50%;background:#fff;cursor:pointer;border:2px solid var(--primary);box-shadow:0 2px 6px rgba(28,52,94,.20)}
+input[type=range]::-moz-range-track{height:7px;background:#dfe6f1;border-radius:999px;border:none}
 input[type=color]{padding:3px;height:40px;cursor:pointer;border-radius:var(--r-sm)}
 input[type=checkbox]{width:17px;height:17px;accent-color:var(--primary);cursor:pointer;flex-shrink:0}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 .frow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
 .frow4{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+/* ── Dashboard + Mood visual consistency ─────────────────────── */
+#dashStats{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:stretch}
+#dashStats .statBox{min-height:112px;height:100%;display:flex;flex-direction:column;justify-content:center}
+.dashPair{align-items:stretch}
+.dashPair>.card{height:100%;min-height:190px}
+.moodPrimaryRanges{display:grid;gap:9px;margin-top:10px}
+.moodRangeRow{display:grid;grid-template-columns:112px minmax(0,1fr) 48px;align-items:center;gap:12px;padding:9px 11px;border:1px solid var(--line);border-radius:var(--r-sm);background:rgba(255,255,255,.48)}
+.moodRangeRow label{margin:0;font-size:10px;color:var(--soft);font-weight:600;text-transform:none;letter-spacing:0}
+.moodRangeRow input[type=range]{width:100%;height:7px}
+.moodRangeRow span{min-width:48px;text-align:right;font-size:11px;color:var(--text);font-weight:650;font-variant-numeric:tabular-nums}
+.moodAdvanced{display:grid;gap:10px;margin-top:10px}
+@media(max-width:1100px){#dashStats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){#dashStats{grid-template-columns:1fr}.moodRangeRow{grid-template-columns:96px minmax(0,1fr) 44px;gap:8px}.dashPair>.card{min-height:0}}
+
 .checkRow{display:flex;align-items:center;gap:9px;padding:6px 0}
 .checkRow label{margin:0;font-size:12px;color:var(--text);text-transform:none;letter-spacing:0;font-weight:600}
 .rangeRow{display:flex;align-items:center;gap:11px}
@@ -291,11 +306,11 @@ padding:30px 32px;max-width:460px;width:calc(100% - 36px);box-shadow:0 40px 90px
 <!-- ═══════════════ DASHBOARD ═══════════════ -->
 <section class="page active" id="page-dash">
   <div class="g4" id="dashStats"></div>
-  <div class="g2" style="margin-top:14px">
+  <div class="g2 dashPair" style="margin-top:14px">
     <div class="card"><div class="cardHead"><span class="cardIcon">📺</span><h3>TV <b>Zónák</b> · Valós idejű</h3></div><div class="g2" id="zoneGrid" style="gap:8px"></div></div>
     <div class="card"><div class="cardHead"><span class="cardIcon">💡</span><h3>LED <b>Szalag</b> · 120 px</h3></div><div class="ledStrip" id="ledBar"></div><div class="ledLegend"><span><i style="background:#ff4466"></i>L0</span><span><i style="background:#ff8844"></i>L1</span><span><i style="background:#4488ff"></i>R0</span><span><i style="background:#44ccff"></i>R1</span></div></div>
   </div>
-  <div class="g2" style="margin-top:14px">
+  <div class="g2 dashPair" style="margin-top:14px">
     <div class="card"><div class="cardHead"><span class="cardIcon">📈</span><h3>Smart <b>Engine</b> Áttekintés</h3></div><div id="dashSmart"></div></div>
     <div class="card"><div class="cardHead"><span class="cardIcon">🛠️</span><h3><b>Gyorsműveletek</b></h3></div>
       <div class="btnRow">
@@ -397,8 +412,7 @@ padding:30px 32px;max-width:460px;width:calc(100% - 36px);box-shadow:0 40px 90px
     </div>
     <div class="card"><div class="cardHead"><span class="cardIcon">📡</span><h3><b>Dinamikus fényerő</b></h3></div>
       <div class="checkRow"><input type="checkbox" id="cfgDynOn"><label>Engedélyezve</label></div>
-      <div class="frow3"><div><label>Minimum</label><div class="unitField"><input type="number" id="cfgDynMin" min="0" max="100" value="0"><span class="unitSuffix">%</span></div></div><div><label>Maximum</label><div class="unitField"><input type="number" id="cfgDynMax" min="0" max="100" value="100"><span class="unitSuffix">%</span></div></div><div><label>Válasz</label><div class="unitField"><input type="number" id="cfgDynResp" min="0" max="100" value="35"><span class="unitSuffix">%</span></div></div></div>
-      <div class="checkRow"><input type="checkbox" id="cfgMoodDyn"><label>Mood dinamikus fényerő</label></div>
+      <div class="frow3"><div><label>Minimum</label><div class="unitField"><input type="number" id="cfgDynMin" min="0" max="100" value="0"><span class="unitSuffix">%</span></div></div><div><label>Maximum</label><div class="unitField"><input type="number" id="cfgDynMax" min="0" max="100" value="100"><span class="unitSuffix">%</span></div></div><div><label>Válasz</label><div class="unitField"><input type="number" id="cfgDynResp" min="0" max="100" value="35"><span class="unitSuffix">%</span></div></div></div>      <div class="checkRow"><input type="checkbox" id="cfgMoodDyn"><label>Mood dinamikus fényerő</label></div>
       <div class="rangeRow"><label style="min-width:80px">Mélység</label><input type="range" id="cfgMoodDep" min="0" max="100" value="25"><span id="cfgMoodDepV">25 %</span></div>
       <div class="unitHint">A Mood mélysége 0–100% között keveri a jelenet-fényességet a statikus globális fényerővel.</div>
     </div>
@@ -797,8 +811,7 @@ function renderDiag(s){
 /* ── Scene Panel ────────────────────────────────────────────────── */
 function renderScene(sc){
   const p=$("scenePanel");if(!p)return;  p.innerHTML=`
-    <div class="meterLabel"><span>Fényerő</span><span>${Math.round(sc.brightness)}%</span></div><div class="meterBar"><div class="meterFill brightness" style="width:${Math.round(sc.brightness)}%"></div></div>
-    <div class="meterLabel"><span>Telítettség</span><span>${Math.round(sc.saturation)}%</span></div><div class="meterBar"><div class="meterFill saturation" style="width:${Math.round(sc.saturation)}%"></div></div>
+    <div class="meterLabel"><span>Fényerő</span><span>${Math.round(sc.brightness)}%</span></div><div class="meterBar"><div class="meterFill brightness" style="width:${Math.round(sc.brightness)}%"></div></div>    <div class="meterLabel"><span>Telítettség</span><span>${Math.round(sc.saturation)}%</span></div><div class="meterBar"><div class="meterFill saturation" style="width:${Math.round(sc.saturation)}%"></div></div>
     <div class="meterLabel"><span>Mozgás</span><span>${Math.round(sc.motion)}%</span></div><div class="meterBar"><div class="meterFill motion" style="width:${Math.round(sc.motion)}%"></div></div>
     <div class="meterLabel"><span>Energia</span><span>${Math.round(sc.energy)}%</span></div><div class="meterBar"><div class="meterFill energy" style="width:${Math.round(sc.energy)}%"></div></div>
     <div class="meterLabel"><span>Jelenetváltozás</span><span>${Math.round(sc.sceneChange??0)}%</span></div><div class="meterBar"><div class="meterFill motion" style="width:${Math.round(sc.sceneChange??0)}%"></div></div>
@@ -909,14 +922,14 @@ function moodForm(side){
   return `<div class="checkRow"><input type="checkbox" id="m_${side}_on" checked><label>Engedélyezve</label></div>
 <div><label>Effekt</label><select id="m_${side}_eff">${EFFECTS.map((e,i)=>`<option value="${i}">${e}${MOOD_IMPLEMENTED.has(i)?"":" · nem implementált"}</option>`).join("")}</select></div>
 <div class="sectionNote">✅ Mind a 23 effekt aktív. Hue, Telítettség, Fényerő, Sebesség, Skála, Mozgás, Fényudvar, Sűrűség, Örvénylés, Paletta, Színmód, Auto TV és Fordítás közvetlenül a Mood motor működését vezérli.</div>
-<div class="rangeRow"><label style="min-width:96px">Hue</label><input type="range" id="m_${side}_hue" min="0" max="360" value="210"><span id="m_${side}_hueV">210°</span></div>
-<div class="frow">
-  <div class="rangeRow"><label style="min-width:70px">Telítettség</label><input type="range" id="m_${side}_sat" min="0" max="100" value="86"><span id="m_${side}_satV">86 %</span></div>
-  <div class="rangeRow"><label style="min-width:56px">Fényerő</label><input type="range" id="m_${side}_bri" min="0" max="100" value="43"><span id="m_${side}_briV">43 %</span></div>
+<div class="moodPrimaryRanges">
+<div class="moodRangeRow"><label>Hue</label><input type="range" id="m_${side}_hue" min="0" max="360" value="210"><span id="m_${side}_hueV">210°</span></div>
+<div class="moodRangeRow"><label>Telítettség</label><input type="range" id="m_${side}_sat" min="0" max="100" value="86"><span id="m_${side}_satV">86 %</span></div>
+<div class="moodRangeRow"><label>Fényerő</label><input type="range" id="m_${side}_bri" min="0" max="100" value="43"><span id="m_${side}_briV">43 %</span></div>
+<div class="moodRangeRow"><label>Sebesség</label><input type="range" id="m_${side}_sp" min="0" max="100" value="28"><span id="m_${side}_spV">28 %</span></div>
+<div class="moodRangeRow"><label>Mozgás</label><input type="range" id="m_${side}_mot" min="0" max="100" value="65"><span id="m_${side}_motV">65 %</span></div>
+<div class="moodRangeRow"><label>Sűrűség <small style="opacity:.6">(Twinkle)</small></label><input type="range" id="m_${side}_den" min="0" max="100" value="55"><span id="m_${side}_denV">55 %</span></div>
 </div>
-<div class="rangeRow"><label style="min-width:96px">Sebesség</label><input type="range" id="m_${side}_sp" min="0" max="100" value="28"><span id="m_${side}_spV">28 %</span></div>
-<div class="rangeRow"><label style="min-width:96px">Mozgás</label><input type="range" id="m_${side}_mot" min="0" max="100" value="65"><span id="m_${side}_motV">65 %</span></div>
-<div class="rangeRow"><label style="min-width:96px">Sűrűség <small style="opacity:.6">(Twinkle)</small></label><input type="range" id="m_${side}_den" min="0" max="100" value="55"><span id="m_${side}_denV">55 %</span></div>
 <div class="sectionNote">A fejlett Mood-paraméterek valós időben a renderelőre hatnak; a nagyobb Skála sűrűbb mintázatot, a Fényudvar magasabb alapfényű kiemelést ad. Az Örvénylés (turbulencia) a zaj-alapú effektekre hat: FIRE, FIRE 2, ORGANIC FLOW, LAVA LAMP, STARFIELD, TWINKLE, NEBULA és PLASMA X — minimális értéken sima/nagy foltok, magasabban sűrűbb, kaotikusabb mintázat.</div>
 <div class="rangeRow"><label style="min-width:96px">Skála</label><input type="range" id="m_${side}_sc" min="0" max="100" value="70"><span id="m_${side}_scV">70 %</span></div>
 <div class="rangeRow"><label style="min-width:96px">Fényudvar</label><input type="range" id="m_${side}_gl" min="0" max="100" value="75"><span id="m_${side}_glV">75 %</span></div>
