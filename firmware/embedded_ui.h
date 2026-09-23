@@ -458,7 +458,7 @@ padding:30px 32px;max-width:460px;width:calc(100% - 36px);box-shadow:0 40px 90px
 /* ═══════════════════════════════════════════════════════════════════════════
    SECTION 1 — UTILITIES & SMART ENGINE MODULES
    ═══════════════════════════════════════════════════════════════════════ */
-const $=id=>document.getElementById(id),$=(s,p)=>[...(p||document).querySelectorAll(s)];
+const $=id=>document.getElementById(id),$$=(s,p)=>[...(p||document).querySelectorAll(s)];
 const escHtml=v=>String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const clamp=(v,lo=0,hi=255)=>Math.max(lo,Math.min(hi,Number(v)||0));
 const clamp01=v=>Math.max(0,Math.min(1,Number(v)||0));
@@ -1096,9 +1096,9 @@ async function uploadOTA(){
 }
 
 /* ── Tabs ───────────────────────────────────────────────────────── */
-$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
-  $(".navBtn").forEach(x=>x.classList.remove("active"));b.classList.add("active");
-  $(".page").forEach(x=>x.classList.remove("active"));$("page-"+b.dataset.page).classList.add("active");
+$$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
+  $$(".navBtn").forEach(x=>x.classList.remove("active"));b.classList.add("active");
+  $$(".page").forEach(x=>x.classList.remove("active"));$("page-"+b.dataset.page).classList.add("active");
   if(b.dataset.page==="mapper")updateMapperPreview();
 }));
 
