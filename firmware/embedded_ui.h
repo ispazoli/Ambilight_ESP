@@ -412,13 +412,13 @@ padding:30px 32px;max-width:460px;width:calc(100% - 36px);box-shadow:0 40px 90px
     </div>
     <div class="card"><div class="cardHead"><span class="cardIcon">📡</span><h3><b>Dinamikus fényerő</b></h3></div>
       <div class="checkRow"><input type="checkbox" id="cfgDynOn"><label>Engedélyezve</label></div>
-      <div class="frow3"><div><label>Minimum</label><div class="unitField"><input type="number" id="cfgDynMin" min="0" max="100" value="0"><span class="unitSuffix">%</span></div></div><div><label>Maximum</label><div class="unitField"><input type="number" id="cfgDynMax" min="0" max="100" value="100"><span class="unitSuffix">%</span></div></div><div><label>Válasz</label><div class="unitField"><input type="number" id="cfgDynResp" min="0" max="100" value="35"><span class="unitSuffix">%</span></div></div></div>      <div class="checkRow"><input type="checkbox" id="cfgMoodDyn"><label>Mood dinamikus fényerő</label></div>
+      <div class="frow3"><div><label>Minimum</label><div class="unitField"><input type="number" id="cfgDynMin" min="0" max="100" value="0"><span class="unitSuffix">%</span></div></div><div><label>Maximum</label><div class="unitField"><input type="number" id="cfgDynMax" min="0" max="100" value="100"><span class="unitSuffix">%</span></div></div><div><label>Válasz</label><div class="unitField"><input type="number" id="cfgDynResp" min="0" max="100" value="35"><span class="unitSuffix">%</span></div></div></div>
+      <div class="checkRow"><input type="checkbox" id="cfgMoodDyn"><label>Mood dinamikus fényerő</label></div>
       <div class="rangeRow"><label style="min-width:80px">Mélység</label><input type="range" id="cfgMoodDep" min="0" max="100" value="25"><span id="cfgMoodDepV">25 %</span></div>
       <div class="unitHint">A Mood mélysége 0–100% között keveri a jelenet-fényességet a statikus globális fényerővel.</div>
     </div>
   </div>
-  <div class="card" style="margin-top:14px"><div class="cardHead"><span class="cardIcon">📦</span><h3><b>OTA Firmware Frissítés</b></h3></div>
-    <div><input type="file" id="otaFile" accept=".bin"><div class="btnRow" style="margin-top:8px"><button class="btn" id="otaBtn" onclick="uploadOTA()">⬆ Feltöltés</button></div></div>
+  <div class="card" style="margin-top:14px"><div class="cardHead"><span class="cardIcon">📦</span><h3><b>OTA Firmware Frissítés</b></h3></div>    <div><input type="file" id="otaFile" accept=".bin"><div class="btnRow" style="margin-top:8px"><button class="btn" id="otaBtn" onclick="uploadOTA()">⬆ Feltöltés</button></div></div>
     <div class="progressWrap" id="otaProgress"><div class="progressBar"><div class="progressFill" id="otaBar"></div></div><div class="progressText" id="otaText"></div></div>
   </div>
   <div class="btnRow" style="margin-top:14px"><button class="btn btnSave" onclick="saveConfig()">💾 Összes beállítás mentése</button></div>
@@ -458,7 +458,7 @@ padding:30px 32px;max-width:460px;width:calc(100% - 36px);box-shadow:0 40px 90px
 /* ═══════════════════════════════════════════════════════════════════════════
    SECTION 1 — UTILITIES & SMART ENGINE MODULES
    ═══════════════════════════════════════════════════════════════════════ */
-const $=id=>document.getElementById(id),$$=(s,p)=>[...(p||document).querySelectorAll(s)];
+const $=id=>document.getElementById(id),$=(s,p)=>[...(p||document).querySelectorAll(s)];
 const escHtml=v=>String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const clamp=(v,lo=0,hi=255)=>Math.max(lo,Math.min(hi,Number(v)||0));
 const clamp01=v=>Math.max(0,Math.min(1,Number(v)||0));
@@ -811,13 +811,13 @@ function renderDiag(s){
 /* ── Scene Panel ────────────────────────────────────────────────── */
 function renderScene(sc){
   const p=$("scenePanel");if(!p)return;  p.innerHTML=`
-    <div class="meterLabel"><span>Fényerő</span><span>${Math.round(sc.brightness)}%</span></div><div class="meterBar"><div class="meterFill brightness" style="width:${Math.round(sc.brightness)}%"></div></div>    <div class="meterLabel"><span>Telítettség</span><span>${Math.round(sc.saturation)}%</span></div><div class="meterBar"><div class="meterFill saturation" style="width:${Math.round(sc.saturation)}%"></div></div>
+    <div class="meterLabel"><span>Fényerő</span><span>${Math.round(sc.brightness)}%</span></div><div class="meterBar"><div class="meterFill brightness" style="width:${Math.round(sc.brightness)}%"></div></div>
+    <div class="meterLabel"><span>Telítettség</span><span>${Math.round(sc.saturation)}%</span></div><div class="meterBar"><div class="meterFill saturation" style="width:${Math.round(sc.saturation)}%"></div></div>
     <div class="meterLabel"><span>Mozgás</span><span>${Math.round(sc.motion)}%</span></div><div class="meterBar"><div class="meterFill motion" style="width:${Math.round(sc.motion)}%"></div></div>
     <div class="meterLabel"><span>Energia</span><span>${Math.round(sc.energy)}%</span></div><div class="meterBar"><div class="meterFill energy" style="width:${Math.round(sc.energy)}%"></div></div>
     <div class="meterLabel"><span>Jelenetváltozás</span><span>${Math.round(sc.sceneChange??0)}%</span></div><div class="meterBar"><div class="meterFill motion" style="width:${Math.round(sc.sceneChange??0)}%"></div></div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
-      <span style="font-size:10px;color:var(--muted)">Domináns:</span>
-      <span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:rgb(${sc.dominantColor.r},${sc.dominantColor.g},${sc.dominantColor.b})"></span>
+      <span style="font-size:10px;color:var(--muted)">Domináns:</span>      <span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:rgb(${sc.dominantColor.r},${sc.dominantColor.g},${sc.dominantColor.b})"></span>
       <span style="font-size:11px;color:var(--text)">${sc.dominantHue}°</span>
       <span style="font-size:10px;color:var(--muted)">· Warm/Cool: ${sc.warmCool>0?'Meleg':sc.warmCool<0?'Hideg':'Semleges'}</span>
     </div>
@@ -1010,13 +1010,13 @@ function collectCfg(){
     mr_start:config?.mr_start??90,mr_count:config?.mr_count??30,
     mood_link:+$("moodLinkSel").value,
     left:colMood("left"),right:colMood("right"),
-    segments:collectSegs()  };
+    segments:collectSegs()
+  };
 }
 
 /* ── Actions ────────────────────────────────────────────────────── */
 async function saveConfig(){
-  let step="TV";
-  try{
+  let step="TV";  try{
     const cfg=collectCfg();
     // TV IP is persisted first, independently from the larger configuration transaction.
     if($("cfgTvIP").value) await apiFormPost("/api/tv",{ip:$("cfgTvIP").value});
@@ -1096,9 +1096,9 @@ async function uploadOTA(){
 }
 
 /* ── Tabs ───────────────────────────────────────────────────────── */
-$$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
-  $$(".navBtn").forEach(x=>x.classList.remove("active"));b.classList.add("active");
-  $$(".page").forEach(x=>x.classList.remove("active"));$("page-"+b.dataset.page).classList.add("active");
+$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
+  $(".navBtn").forEach(x=>x.classList.remove("active"));b.classList.add("active");
+  $(".page").forEach(x=>x.classList.remove("active"));$("page-"+b.dataset.page).classList.add("active");
   if(b.dataset.page==="mapper")updateMapperPreview();
 }));
 
@@ -1122,6 +1122,4 @@ setInterval(async()=>{if(!espHost||securePage)return;try{const s=await apiGet("/
 console.log("🚀 Ambilight Bridge v5.6.3 · Mood Turbulence Fix · Ready");
 </script>
 </body>
-</html>
-
-)AMB_CC_HTML";
+</html>)AMB_CC_HTML";
