@@ -156,20 +156,36 @@ label{display:block;font-size:10px;color:var(--muted);margin-bottom:4px;font-wei
 input,select{width:100%;padding:11px 13px;border-radius:var(--r-sm);border:1px solid var(--line);background:#fff;color:var(--text);font-size:13px;outline:none;font-family:inherit;transition:border .2s,box-shadow .2s}
 input:hover,select:hover{border-color:var(--line2)}
 input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,122,255,.14)}
-input[type=range]{padding:0;height:6px;-webkit-appearance:none;appearance:none;background:#dfe6f1;border-radius:4px;cursor:pointer;border:none}
+input[type=range]{padding:0;height:7px;-webkit-appearance:none;appearance:none;background:#dfe6f1;border-radius:999px;cursor:pointer;border:none;accent-color:var(--primary)}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;cursor:pointer;border:none;box-shadow:0 0 0 2px var(--primary),0 2px 6px rgba(28,52,94,.25);transition:transform .15s}
 input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.15)}
-input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;cursor:pointer;border:2px solid var(--primary)}
+input[type=range]::-moz-range-thumb{width:17px;height:17px;border-radius:50%;background:#fff;cursor:pointer;border:2px solid var(--primary);box-shadow:0 2px 6px rgba(28,52,94,.20)}
+input[type=range]::-moz-range-track{height:7px;background:#dfe6f1;border-radius:999px;border:none}
 input[type=color]{padding:3px;height:40px;cursor:pointer;border-radius:var(--r-sm)}
 input[type=checkbox]{width:17px;height:17px;accent-color:var(--primary);cursor:pointer;flex-shrink:0}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 .frow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
 .frow4{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+/* ── Dashboard + Mood visual consistency ─────────────────────── */
+#dashStats{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:stretch}
+#dashStats .statBox{min-height:112px;height:100%;display:flex;flex-direction:column;justify-content:center}
+.dashPair{align-items:stretch}
+.dashPair>.card{height:100%;min-height:190px}
+.moodPrimaryRanges{display:grid;gap:9px;margin-top:10px}
+.moodRangeRow{display:grid;grid-template-columns:112px minmax(0,1fr) 48px;align-items:center;gap:12px;padding:9px 11px;border:1px solid var(--line);border-radius:var(--r-sm);background:rgba(255,255,255,.48)}
+.moodRangeRow label{margin:0;font-size:10px;color:var(--soft);font-weight:600;text-transform:none;letter-spacing:0}
+.moodRangeRow input[type=range]{width:100%;height:7px}
+.moodRangeRow span{min-width:48px;text-align:right;font-size:11px;color:var(--text);font-weight:650;font-variant-numeric:tabular-nums}
+.moodAdvanced{display:grid;gap:10px;margin-top:10px}
+@media(max-width:1100px){#dashStats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){#dashStats{grid-template-columns:1fr}.moodRangeRow{grid-template-columns:96px minmax(0,1fr) 44px;gap:8px}.dashPair>.card{min-height:0}}
+
 .checkRow{display:flex;align-items:center;gap:9px;padding:6px 0}
 .checkRow label{margin:0;font-size:12px;color:var(--text);text-transform:none;letter-spacing:0;font-weight:600}
 .rangeRow{display:flex;align-items:center;gap:11px}
-.rangeRow input[type=range]{flex:1}.rangeRow span{font-size:11px;color:var(--soft);min-width:52px;text-align:right;font-weight:590;font-variant-numeric:tabular-nums}
+.rangeRow input[type=range]{flex:1}.rangeRow span{font-size:12px;color:var(--soft);min-width:50px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums}.rangeRow label{font-size:11px;color:var(--soft);font-weight:600}
 .unitField{display:flex;align-items:center;gap:6px}.unitField input{flex:1;width:auto;min-width:0}.unitSuffix{flex:0 0 auto;font-size:11px;font-weight:650;color:var(--soft);min-width:22px}.unitHint{font-size:9px;color:var(--muted);line-height:1.4;margin-top:5px}.sectionNote{padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.42);font-size:10px;color:var(--muted);line-height:1.5;margin-top:10px}
+.off{opacity:.55}.off input[type=range]{filter:grayscale(1)}.offTag{display:inline-block;margin-left:5px;padding:1px 5px;border-radius:6px;background:#e7ebf3;color:var(--muted);font-size:8px;font-weight:800;letter-spacing:.5px;vertical-align:middle}
 input:disabled{opacity:.55;cursor:not-allowed}
 /* ── Buttons ─────────────────────────────────────────────────── */
 .btn{display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border-radius:var(--r-pill);
@@ -284,11 +300,11 @@ padding:30px 32px;max-width:460px;width:calc(100% - 36px);box-shadow:0 40px 90px
 <!-- ═══════════════ DASHBOARD ═══════════════ -->
 <section class="page active" id="page-dash">
   <div class="g4" id="dashStats"></div>
-  <div class="g2" style="margin-top:14px">
+  <div class="g2 dashPair" style="margin-top:14px">
     <div class="card"><div class="cardHead"><span class="cardIcon">📺</span><h3>TV <b>Zónák</b> · Valós idejű</h3></div><div class="g2" id="zoneGrid" style="gap:8px"></div></div>
     <div class="card"><div class="cardHead"><span class="cardIcon">💡</span><h3>LED <b>Szalag</b> · 120 px</h3></div><div class="ledStrip" id="ledBar"></div><div class="ledLegend"><span><i style="background:#ff4466"></i>L0</span><span><i style="background:#ff8844"></i>L1</span><span><i style="background:#4488ff"></i>R0</span><span><i style="background:#44ccff"></i>R1</span></div></div>
   </div>
-  <div class="g2" style="margin-top:14px">
+  <div class="g2 dashPair" style="margin-top:14px">
     <div class="card"><div class="cardHead"><span class="cardIcon">📈</span><h3>Smart <b>Engine</b> Áttekintés</h3></div><div id="dashSmart"></div></div>
     <div class="card"><div class="cardHead"><span class="cardIcon">🛠️</span><h3><b>Gyorsműveletek</b></h3></div>
       <div class="btnRow">
@@ -336,7 +352,7 @@ padding:30px 32px;max-width:460px;width:calc(100% - 36px);box-shadow:0 40px 90px
   </div>
   <div class="g2" style="margin-top:14px">
     <div class="card"><div class="cardHead"><span class="cardIcon">📐</span><h3>Zóna <b>Analízis</b></h3></div><div class="g2" id="zoneAnalysis" style="gap:8px"></div></div>
-    <div class="card"><div class="cardHead"><span class="cardIcon">🧠</span><h3>Smart Engine <b>Státusz</b></h3></div><div id="engineStatus"></div><div class="unitHint">A Scene Analyzer és Adaptive Controller jelenleg böngésző-oldali elemzés/előnézet; a v5.6.1 nem küldi automatikusan az adaptív értékeket firmware-paraméterként.</div></div>
+    <div class="card"><div class="cardHead"><span class="cardIcon">🧠</span><h3>Smart Engine <b>Státusz</b></h3></div><div id="engineStatus"></div><div class="unitHint">A Scene Analyzer és Adaptive Controller jelenleg böngésző-oldali elemzés/előnézet; a v5.6.3 nem küldi automatikusan az adaptív értékeket firmware-paraméterként.</div></div>
   </div>
 </section>
 
@@ -396,8 +412,7 @@ padding:30px 32px;max-width:460px;width:calc(100% - 36px);box-shadow:0 40px 90px
       <div class="unitHint">A Mood mélysége 0–100% között keveri a jelenet-fényességet a statikus globális fényerővel.</div>
     </div>
   </div>
-  <div class="card" style="margin-top:14px"><div class="cardHead"><span class="cardIcon">📦</span><h3><b>OTA Firmware Frissítés</b></h3></div>
-    <div><input type="file" id="otaFile" accept=".bin"><div class="btnRow" style="margin-top:8px"><button class="btn" id="otaBtn" onclick="uploadOTA()">⬆ Feltöltés</button></div></div>
+  <div class="card" style="margin-top:14px"><div class="cardHead"><span class="cardIcon">📦</span><h3><b>OTA Firmware Frissítés</b></h3></div>    <div><input type="file" id="otaFile" accept=".bin"><div class="btnRow" style="margin-top:8px"><button class="btn" id="otaBtn" onclick="uploadOTA()">⬆ Feltöltés</button></div></div>
     <div class="progressWrap" id="otaProgress"><div class="progressBar"><div class="progressFill" id="otaBar"></div></div><div class="progressText" id="otaText"></div></div>
   </div>
   <div class="btnRow" style="margin-top:14px"><button class="btn btnSave" onclick="saveConfig()">💾 Összes beállítás mentése</button></div>
@@ -729,6 +744,7 @@ function updateMapperPreview(){
 }
 
 /* ── Dash stats ─────────────────────────────────────────────────── */
+
 function pctFrom255(v){return Math.round(Math.max(0,Math.min(255,Number(v)||0))*100/255)}
 function raw255FromPct(v){return Math.round(Math.max(0,Math.min(100,Number(v)||0))*255/100)}
 function formatDurationSeconds(v){
@@ -795,8 +811,7 @@ function renderScene(sc){
     <div class="meterLabel"><span>Energia</span><span>${Math.round(sc.energy)}%</span></div><div class="meterBar"><div class="meterFill energy" style="width:${Math.round(sc.energy)}%"></div></div>
     <div class="meterLabel"><span>Jelenetváltozás</span><span>${Math.round(sc.sceneChange??0)}%</span></div><div class="meterBar"><div class="meterFill motion" style="width:${Math.round(sc.sceneChange??0)}%"></div></div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
-      <span style="font-size:10px;color:var(--muted)">Domináns:</span>
-      <span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:rgb(${sc.dominantColor.r},${sc.dominantColor.g},${sc.dominantColor.b})"></span>
+      <span style="font-size:10px;color:var(--muted)">Domináns:</span>      <span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:rgb(${sc.dominantColor.r},${sc.dominantColor.g},${sc.dominantColor.b})"></span>
       <span style="font-size:11px;color:var(--text)">${sc.dominantHue}°</span>
       <span style="font-size:10px;color:var(--muted)">· Warm/Cool: ${sc.warmCool>0?'Meleg':sc.warmCool<0?'Hideg':'Semleges'}</span>
     </div>
@@ -894,16 +909,28 @@ function setVal(id,v){const e=$(id);if(e)e.value=v}
 /* Kanonikus Mood ID contract 0–22 — a firmware MOOD_FX_NAMES[]-szal pontosan egyező sorrend */
 const EFFECTS=["Static","Breathe","Rainbow","Slow Color","Warm","Color Wave","Comet","Twinkle","Plasma","Fire","Palette Wave","Aurora","Ocean","Fire 2","Energy Pulse","Meteor Shower","Nebula","Starfield","Organic Flow","Cyber Flow","Spectral","Lava Lamp","Plasma X"];
 const FX_COUNT=EFFECTS.length; /* 23 */
+/* Firmware v5.6.3 Mood-motor: mind a 23 effekt saját renderelési ággal rendelkezik; a turbulencia 8 zaj-alapú effektre hat. */
+const MOOD_IMPLEMENTED=new Set(Array.from({length:FX_COUNT},(_,i)=>i));
 const PALETTES=["RED","Scarlet","Orange","Amber","Gold","Yellow","Lime","Green","Spring","Emerald","Turquoise","Cyan","Sky","Blue","Royal Blue","Indigo","Violet","Purple","Magenta","Pink","Rose","Crimson","Deep Red","Ice White"];
 function moodForm(side){
   return `<div class="checkRow"><input type="checkbox" id="m_${side}_on" checked><label>Engedélyezve</label></div>
-<div><label>Effekt</label><select id="m_${side}_eff">${EFFECTS.map((e,i)=>`<option value="${i}">${e}</option>`).join("")}</select></div>
-<div class="checkRow"><input type="checkbox" id="m_${side}_auto"><label>Auto szín (TV)</label></div>
-<div class="rangeRow"><label style="min-width:60px">Hue</label><input type="range" id="m_${side}_hue" min="0" max="360" value="210"><span id="m_${side}_hueV">210°</span></div>
-<div class="frow3"><div class="rangeRow"><label>Telítettség</label><input type="range" id="m_${side}_sat" min="0" max="100" value="86"><span id="m_${side}_satV" style="font-size:9px">86 %</span></div><div class="rangeRow"><label>Fényerő</label><input type="range" id="m_${side}_bri" min="0" max="100" value="43"><span id="m_${side}_briV" style="font-size:9px">43 %</span></div><div class="rangeRow"><label>Sebesség</label><input type="range" id="m_${side}_sp" min="0" max="100" value="28"><span id="m_${side}_spV" style="font-size:9px">28 %</span></div></div>
+<div><label>Effekt</label><select id="m_${side}_eff">${EFFECTS.map((e,i)=>`<option value="${i}">${e}${MOOD_IMPLEMENTED.has(i)?"":" · nem implementált"}</option>`).join("")}</select></div>
+<div class="sectionNote">✅ Mind a 23 effekt aktív. Hue, Telítettség, Fényerő, Sebesség, Skála, Mozgás, Fényudvar, Sűrűség, Örvénylés, Paletta, Színmód, Auto TV és Fordítás közvetlenül a Mood motor működését vezérli.</div>
+<div class="moodPrimaryRanges">
+<div class="moodRangeRow"><label>Hue</label><input type="range" id="m_${side}_hue" min="0" max="360" value="210"><span id="m_${side}_hueV">210°</span></div>
+<div class="moodRangeRow"><label>Telítettség</label><input type="range" id="m_${side}_sat" min="0" max="100" value="86"><span id="m_${side}_satV">86 %</span></div>
+<div class="moodRangeRow"><label>Fényerő</label><input type="range" id="m_${side}_bri" min="0" max="100" value="43"><span id="m_${side}_briV">43 %</span></div>
+<div class="moodRangeRow"><label>Sebesség</label><input type="range" id="m_${side}_sp" min="0" max="100" value="28"><span id="m_${side}_spV">28 %</span></div>
+<div class="moodRangeRow"><label>Mozgás</label><input type="range" id="m_${side}_mot" min="0" max="100" value="65"><span id="m_${side}_motV">65 %</span></div>
+<div class="moodRangeRow"><label>Sűrűség <small style="opacity:.6">(Twinkle)</small></label><input type="range" id="m_${side}_den" min="0" max="100" value="55"><span id="m_${side}_denV">55 %</span></div>
+</div>
+<div class="sectionNote">A fejlett Mood-paraméterek valós időben a renderelőre hatnak; a nagyobb Skála sűrűbb mintázatot, a Fényudvar magasabb alapfényű kiemelést ad. Az Örvénylés (turbulencia) a zaj-alapú effektekre hat: FIRE, FIRE 2, ORGANIC FLOW, LAVA LAMP, STARFIELD, TWINKLE, NEBULA és PLASMA X — minimális értéken sima/nagy foltok, magasabban sűrűbb, kaotikusabb mintázat.</div>
+<div class="rangeRow"><label style="min-width:96px">Skála</label><input type="range" id="m_${side}_sc" min="0" max="100" value="70"><span id="m_${side}_scV">70 %</span></div>
+<div class="rangeRow"><label style="min-width:96px">Fényudvar</label><input type="range" id="m_${side}_gl" min="0" max="100" value="75"><span id="m_${side}_glV">75 %</span></div>
+<div class="rangeRow"><label style="min-width:96px">Örvénylés</label><input type="range" id="m_${side}_tur" min="0" max="100" value="45"><span id="m_${side}_turV">45 %</span></div>
 <div><label>Paletta</label><select id="m_${side}_pal">${PALETTES.map((e,i)=>`<option value="${i}">${e}</option>`).join("")}</select></div>
-<div class="frow3"><div class="rangeRow"><label>Skála</label><input type="range" id="m_${side}_sc" min="0" max="100" value="70"><span id="m_${side}_scV" style="font-size:9px">70 %</span></div><div class="rangeRow"><label>Mozgás</label><input type="range" id="m_${side}_mot" min="0" max="100" value="65"><span id="m_${side}_motV" style="font-size:9px">65 %</span></div><div class="rangeRow"><label>Fényudvar</label><input type="range" id="m_${side}_gl" min="0" max="100" value="75"><span id="m_${side}_glV" style="font-size:9px">75 %</span></div></div>
-<div class="frow3"><div class="rangeRow"><label>Sűrűség</label><input type="range" id="m_${side}_den" min="0" max="100" value="55"><span id="m_${side}_denV" style="font-size:9px">55 %</span></div><div class="rangeRow"><label>Örvénylés</label><input type="range" id="m_${side}_tur" min="0" max="100" value="45"><span id="m_${side}_turV" style="font-size:9px">45 %</span></div><div><label>Színmód</label><select id="m_${side}_cm"><option value="0">Paletta</option><option value="1">Fix hue</option><option value="2">Auto TV</option><option value="3">Hue gradiens</option></select></div></div>
+<div><label>Színmód</label><select id="m_${side}_cm"><option value="0">Paletta</option><option value="1">Fix hue</option><option value="2">Auto TV</option><option value="3">Hue gradiens</option></select></div>
+<div class="checkRow"><input type="checkbox" id="m_${side}_auto"><label>Auto szín (TV)</label></div>
 <div class="checkRow"><input type="checkbox" id="m_${side}_rev"><label>Fordított</label></div>`;
 }
 function applyMood(side,m){
@@ -983,8 +1010,7 @@ function collectCfg(){
 
 /* ── Actions ────────────────────────────────────────────────────── */
 async function saveConfig(){
-  let step="TV";
-  try{
+  let step="TV";  try{
     const cfg=collectCfg();
     // TV IP is persisted first, independently from the larger configuration transaction.
     if($("cfgTvIP").value) await apiFormPost("/api/tv",{ip:$("cfgTvIP").value});
@@ -997,3 +1023,97 @@ async function saveConfig(){
     step="MOOD";
     const moodArgs=(side)=>({
       [side+"Mode"]:cfg[side].mode?1:0,[side+"Effect"]:cfg[side].effect,[side+"Hue"]:cfg[side].hue,
+      [side+"Sat"]:cfg[side].sat,[side+"Val"]:cfg[side].bri,[side+"Speed"]:cfg[side].speed,
+      [side+"Palette"]:cfg[side].pal,[side+"Scale"]:cfg[side].scale,[side+"Motion"]:cfg[side].motion,
+      [side+"Glow"]:cfg[side].glow,[side+"Density"]:cfg[side].den,[side+"Turbulence"]:cfg[side].turb,
+      [side+"ColorMode"]:cfg[side].cm,[side+"Auto"]:cfg[side].auto?1:0,[side+"Reverse"]:cfg[side].rev?1:0
+    });
+    await apiFormPost("/api/mood",{...moodArgs("left"),...moodArgs("right"),linkMode:cfg.mood_link});
+    step="SIDECLONE";
+    await apiFormPost("/api/sideclone",{enabled:cfg.clone_on?1:0,brightness:cfg.clone_bri,leftStart:cfg.clone_l_start,leftCount:cfg.clone_l_count,rightStart:cfg.clone_r_start,rightCount:cfg.clone_r_count,leftReverse:cfg.clone_l_rev?1:0,rightReverse:cfg.clone_r_rev?1:0});
+    toast("Beállítások elmentve ✓");setTimeout(loadAll,300);
+  }catch(e){toast("Mentési hiba ["+step+"]: "+e.message,1)}
+}
+async function defaults(){
+  try{
+    const segs=canonicalMapperDefaults().filter(x=>x.count>0);
+    await apiFormPost("/api/config",{brightness:160,smoothing:70,blackThreshold:4});
+    await apiPost("/api/mapper",{segments:segs});
+    await apiFormPost("/api/mood",{leftMode:0,rightMode:0,leftHue:0,rightHue:120,leftSat:255,rightSat:255,leftVal:200,rightVal:200,linkMode:0});
+    await apiFormPost("/api/sideclone",{enabled:1,brightness:255,leftStart:30,leftCount:30,rightStart:90,rightCount:30,leftReverse:0,rightReverse:0});
+    toast("Gyári alapbeállítások visszaállítva ✓");setTimeout(loadAll,500);
+  }catch(e){toast("Gyári visszaállítás hiba: "+e.message,1)}
+}
+async function restartESP(){try{await apiFormPost("/api/reboot?confirm=1",{});toast("ESP32 újraindul...");updateConn(false)}catch(e){toast("Hiba: "+e.message,1)}}
+async function ledTest(m){const rgb={red:[255,0,0],green:[0,255,0],blue:[0,0,255],white:[255,255,255]}[m]||[255,255,255];try{await apiFormPost("/api/ledtest",{r:rgb[0],g:rgb[1],b:rgb[2]});toast("LED teszt: "+m)}catch(e){toast("LED teszt hiba: "+e.message,1)}}
+async function saveWiFi(){try{const r=await apiFormPost("/api/wifi",{ssid:$("cfgWifiSSID").value,password:$("cfgWifiPass").value});toast(r.changed===false?"WiFi már beállítva ✓":"WiFi mentve — újraindítás ✓")}catch(e){toast("WiFi mentési hiba: "+e.message,1)}}
+async function saveAuth(){
+  const p1=$("cfgAuthPass").value,p2=$("cfgAuthPass2").value;
+  if(p1.length>63)return toast("Jelszó max 63 karakter",1);
+  if(p1!==p2)return toast("A két jelszó nem egyezik",1);
+  try{
+    const r=await apiFormPost("/api/auth",{password:$("cfgAuthOn").checked?p1:""});
+    if(!r.enabled){auth="";localStorage.removeItem("ab_auth")}
+    toast(r.enabled?"Auth bekapcsolva ✓":"Auth kikapcsolva ✓");
+    $("cfgAuthPass").value="";$("cfgAuthPass2").value="";
+    refreshAuthState();
+  }catch(e){toast("Auth mentési hiba: "+e.message,1)}
+}
+async function disableAuth(){
+  try{await apiFormPost("/api/auth",{password:""});auth="";localStorage.removeItem("ab_auth");toast("Auth kikapcsolva ✓");refreshAuthState()}
+  catch(e){toast("Hiba: "+e.message,1)}
+}
+async function refreshAuthState(){
+  try{
+    const a=await apiGet("/api/auth");
+    const b=$("authStateBadge");
+    if(b){
+      if(a.enabled){b.textContent="BEKAPCSOLVA";b.className="sceneBadge action";}
+      else if(a.setup){b.textContent="BEÁLLÍTÁS SZÜKSÉGES";b.className="sceneBadge action";}
+      else {b.textContent="KIKAPCSOLVA";b.className="sceneBadge calm";}
+    }
+    // Első indításkor (setup) figyelmeztetés: a config nyitva, de az OTA jelszó nélkül tiltott.
+    if(a.setup){ toast("Ajánlott jelszót beállítani — OTA-frissítés csak jelszóval elérhető",1); }
+    const c=$("cfgAuthOn");if(c)c.checked=!!a.enabled;
+  }catch(e){}
+}
+async function uploadOTA(){
+  const f=$("otaFile").files[0];if(!f)return toast("Válassz .bin fájlt",1);
+  if(!/\.bin$/i.test(f.name))return toast("Csak .bin fájl",1);
+  const x=new XMLHttpRequest();x.open("POST",apiUrl("/api/ota"));
+  if(auth)x.setRequestHeader("Authorization",auth);
+  $("otaBtn").disabled=true;$("otaProgress").style.display="block";
+  x.upload.onprogress=e=>{if(e.lengthComputable){const p=Math.round(e.loaded/e.total*100);$("otaBar").style.width=p+"%";$("otaText").textContent="Feltöltés "+p+"%"}};
+  x.onload=()=>{if(x.status>=200&&x.status<300){$("otaText").textContent="Sikeres! Újraindul...";toast("OTA sikeres ✓");setTimeout(()=>location.reload(),8000)}else{$("otaText").textContent="HIBA: "+x.status;toast("OTA hiba",1)}};
+  x.onerror=()=>{$("otaText").textContent="Hálózati hiba";toast("OTA hiba",1)};
+  const fd=new FormData();fd.append("update",f);x.send(fd);
+}
+
+/* ── Tabs ───────────────────────────────────────────────────────── */
+$$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
+  $$(".navBtn").forEach(x=>x.classList.remove("active"));b.classList.add("active");
+  $$(".page").forEach(x=>x.classList.remove("active"));$("page-"+b.dataset.page).classList.add("active");
+  if(b.dataset.page==="mapper")updateMapperPreview();
+}));
+
+/* ── Live range updates ─────────────────────────────────────────── */
+["cfgBri","cfgSmooth","cfgMoodDep","cfgCloneBri"].forEach(id=>$(id)?.addEventListener("input",()=>{const v=$(id).value;const e=$(id+"V");if(e)e.textContent=v+" %"}));
+$("cfgBlack")?.addEventListener("input",()=>{const e=$("cfgBlackV");if(e)e.textContent=$("cfgBlack").value+" / 255"});
+function wireMoodLive(){["left","right"].forEach(s=>["hue","sat","bri","sp","sc","mot","gl","den","tur"].forEach(p=>{const el=$("m_"+s+"_"+p);if(!el||el.dataset.live)return;el.dataset.live="1";el.addEventListener("input",()=>{const v=el.value;const e=$("m_"+s+"_"+p+"V");if(e)e.textContent=p==="hue"?v+"°":v+" %"});}));}
+
+/* ── Init ───────────────────────────────────────────────────────── */
+$("moodLeftForm").innerHTML=moodForm("left");$("moodRightForm").innerHTML=moodForm("right");wireMoodLive();renderSegs(canonicalMapperDefaults());renderScene({brightness:0,saturation:0,motion:0,energy:0,dominantColor:{r:0,g:0,b:0},dominantHue:0,warmCool:0,zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});renderAdaptive({brightness:50,speed:50,reaction:50,sceneType:"NORMAL"});renderZoneAnalysis({zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});
+if(localESPPage){
+  espHost=location.hostname; espPort=Number(location.port)||8080;
+  espIP=espHost+(espPort!==8080?":"+espPort:"");
+  $("connectModal").style.display="none";
+  loadAll();
+}else if(espIP && !securePage){
+  try{setESPAddress(espIP);loadAll()}catch(e){$("connectModal").style.display="flex"}
+}else $("connectModal").style.display="flex";
+if(securePage){$("modalIP").value=localStorage.getItem("ab_ip")||"192.168.1.228";}
+setInterval(async()=>{if(!espHost||securePage)return;try{const s=await apiGet("/api/state");config={...config,...normalizeState(s)};updateConn(true,config.tv_online);renderStats(config);renderDiag(config);renderTVStatus(config)}catch(e){updateConn(false)}},8000);
+console.log("🚀 Ambilight Bridge v5.6.3 · Mood Turbulence Fix · Ready");
+</script>
+</body>
+</html>
