@@ -998,3 +998,118 @@ function collectCfg(){
     mood_link:+$("moodLinkSel").value,
     left:colMood("left"),right:colMood("right"),
     segments:collectSegs()
+  };
+}
+
+/* ── Actions ────────────────────────────────────────────────────── */
+async function saveConfig(){
+  let step="TV";
+  try{
+    const cfg=collectCfg();
+    // TV IP is persisted first, independently from the larger configuration transaction.
+    if($("cfgTvIP").value) await apiFormPost("/api/tv",{ip:$("cfgTvIP").value});
+    step="CONFIG";
+    await apiFormPost("/api/config",{brightness:cfg.brightness,smoothing:cfg.smoothing,blackThreshold:cfg.black_threshold,
+      dyn_on:cfg.dyn_on?1:0,dyn_min:cfg.dyn_min,dyn_max:cfg.dyn_max,dyn_resp:cfg.dyn_resp,
+      mood_dyn:cfg.mood_dyn?1:0,mood_dep:cfg.mood_dep,tv_sync:cfg.tv_sync?1:0,tv_bsync:cfg.tv_bsync?1:0,amb_src:cfg.amb_src});
+    step="MAPPER";
+    await apiPost("/api/mapper",{segments:cfg.segments});
+    step="MOOD";
+    const moodArgs=(side)=>({
+      [side+"Mode"]:cfg[side].mode?1:0,[side+"Effect"]:cfg[side].effect,[side+"Hue"]:cfg[side].hue,
+      [side+"Sat"]:cfg[side].sat,[side+"Val"]:cfg[side].bri,[side+"Speed"]:cfg[side].speed,
+      [side+"Palette"]:cfg[side].pal,[side+"Scale"]:cfg[side].scale,[side+"Motion"]:cfg[side].motion,
+      [side+"Glow"]:cfg[side].glow,[side+"Density"]:cfg[side].den,[side+"Turbulence"]:cfg[side].turb,
+      [side+"ColorMode"]:cfg[side].cm,[side+"Auto"]:cfg[side].auto?1:0,[side+"Reverse"]:cfg[side].rev?1:0
+    });
+    await apiFormPost("/api/mood",{...moodArgs("left"),...moodArgs("right"),linkMode:cfg.mood_link});
+    step="SIDECLONE";
+    await apiFormPost("/api/sideclone",{enabled:cfg.clone_on?1:0,brightness:cfg.clone_bri,leftStart:cfg.clone_l_start,leftCount:cfg.clone_l_count,rightStart:cfg.clone_r_start,rightCount:cfg.clone_r_count,leftReverse:cfg.clone_l_rev?1:0,rightReverse:cfg.clone_r_rev?1:0});
+    toast("Beállítások elmentve ✓");setTimeout(loadAll,300);
+  }catch(e){toast("Mentési hiba ["+step+"]: "+e.message,1)}
+}
+async function defaults(){
+  try{
+    const segs=canonicalMapperDefaults().filter(x=>x.count>0);
+    await apiFormPost("/api/config",{brightness:160,smoothing:70,blackThreshold:4});
+    await apiPost("/api/mapper",{segments:segs});
+    await apiFormPost("/api/mood",{leftMode:0,rightMode:0,leftHue:0,rightHue:120,leftSat:255,rightSat:255,leftVal:200,rightVal:200,linkMode:0});
+    await apiFormPost("/api/sideclone",{enabled:1,brightness:255,leftStart:30,leftCount:30,rightStart:90,rightCount:30,leftReverse:0,rightReverse:0});
+    toast("Gyári alapbeállítások visszaállítva ✓");setTimeout(loadAll,500);
+  }catch(e){toast("Gyári visszaállítás hiba: "+e.message,1)}
+}
+async function restartESP(){try{await apiFormPost("/api/reboot?confirm=1",{});toast("ESP32 újraindul...");updateConn(false)}catch(e){toast("Hiba: "+e.message,1)}}
+async function ledTest(m){const rgb={red:[255,0,0],green:[0,255,0],blue:[0,0,255],white:[255,255,255]}[m]||[255,255,255];try{await apiFormPost("/api/ledtest",{r:rgb[0],g:rgb[1],b:rgb[2]});toast("LED teszt: "+m)}catch(e){toast("LED teszt hiba: "+e.message,1)}}
+async function saveWiFi(){try{const r=await apiFormPost("/api/wifi",{ssid:$("cfgWifiSSID").value,password:$("cfgWifiPass").value});toast(r.changed===false?"WiFi már beállítva ✓":"WiFi mentve — újraindítás ✓")}catch(e){toast("WiFi mentési hiba: "+e.message,1)}}
+async function saveAuth(){
+  const p1=$("cfgAuthPass").value,p2=$("cfgAuthPass2").value;
+  if(p1.length>63)return toast("Jelszó max 63 karakter",1);
+  if(p1!==p2)return toast("A két jelszó nem egyezik",1);
+  try{
+    const r=await apiFormPost("/api/auth",{password:$("cfgAuthOn").checked?p1:""});
+    if(!r.enabled){auth="";localStorage.removeItem("ab_auth")}
+    toast(r.enabled?"Auth bekapcsolva ✓":"Auth kikapcsolva ✓");
+    $("cfgAuthPass").value="";$("cfgAuthPass2").value="";
+    refreshAuthState();
+  }catch(e){toast("Auth mentési hiba: "+e.message,1)}
+}
+async function disableAuth(){
+  try{await apiFormPost("/api/auth",{password:""});auth="";localStorage.removeItem("ab_auth");toast("Auth kikapcsolva ✓");refreshAuthState()}
+  catch(e){toast("Hiba: "+e.message,1)}
+}
+async function refreshAuthState(){
+  try{
+    const a=await apiGet("/api/auth");
+    const b=$("authStateBadge");
+    if(b){
+      if(a.enabled){b.textContent="BEKAPCSOLVA";b.className="sceneBadge action";}
+      else if(a.setup){b.textContent="BEÁLLÍTÁS SZÜKSÉGES";b.className="sceneBadge action";}
+      else {b.textContent="KIKAPCSOLVA";b.className="sceneBadge calm";}
+    }
+    // Első indításkor (setup) figyelmeztetés: a config nyitva, de az OTA jelszó nélkül tiltott.
+    if(a.setup){ toast("Ajánlott jelszót beállítani — OTA-frissítés csak jelszóval elérhető",1); }
+    const c=$("cfgAuthOn");if(c)c.checked=!!a.enabled;
+  }catch(e){}
+}
+async function uploadOTA(){
+  const f=$("otaFile").files[0];if(!f)return toast("Válassz .bin fájlt",1);
+  if(!/\.bin$/i.test(f.name))return toast("Csak .bin fájl",1);
+  const x=new XMLHttpRequest();x.open("POST",apiUrl("/api/ota"));
+  if(auth)x.setRequestHeader("Authorization",auth);
+  $("otaBtn").disabled=true;$("otaProgress").style.display="block";
+  x.upload.onprogress=e=>{if(e.lengthComputable){const p=Math.round(e.loaded/e.total*100);$("otaBar").style.width=p+"%";$("otaText").textContent="Feltöltés "+p+"%"}};
+  x.onload=()=>{if(x.status>=200&&x.status<300){$("otaText").textContent="Sikeres! Újraindul...";toast("OTA sikeres ✓");setTimeout(()=>location.reload(),8000)}else{$("otaText").textContent="HIBA: "+x.status;toast("OTA hiba",1)}};
+  x.onerror=()=>{$("otaText").textContent="Hálózati hiba";toast("OTA hiba",1)};
+  const fd=new FormData();fd.append("update",f);x.send(fd);
+}
+
+/* ── Tabs ───────────────────────────────────────────────────────── */
+$$(".navBtn").forEach(b=>b.addEventListener("click",()=>{
+  $$(".navBtn").forEach(x=>x.classList.remove("active"));b.classList.add("active");
+  $$(".page").forEach(x=>x.classList.remove("active"));$("page-"+b.dataset.page).classList.add("active");
+  if(b.dataset.page==="mapper")updateMapperPreview();
+}));
+
+/* ── Live range updates ─────────────────────────────────────────── */
+["cfgBri","cfgSmooth","cfgMoodDep","cfgCloneBri"].forEach(id=>$(id)?.addEventListener("input",()=>{const v=$(id).value;const e=$(id+"V");if(e)e.textContent=v+" %"}));
+$("cfgBlack")?.addEventListener("input",()=>{const e=$("cfgBlackV");if(e)e.textContent=$("cfgBlack").value+" / 255"});
+function wireMoodLive(){["left","right"].forEach(s=>["hue","sat","bri","sp","sc","mot","gl","den","tur"].forEach(p=>{const el=$("m_"+s+"_"+p);if(!el||el.dataset.live)return;el.dataset.live="1";el.addEventListener("input",()=>{const v=el.value;const e=$("m_"+s+"_"+p+"V");if(e)e.textContent=p==="hue"?v+"°":v+" %"});}));}
+
+/* ── Init ───────────────────────────────────────────────────────── */
+$("moodLeftForm").innerHTML=moodForm("left");$("moodRightForm").innerHTML=moodForm("right");wireMoodLive();renderSegs(canonicalMapperDefaults());renderScene({brightness:0,saturation:0,motion:0,energy:0,dominantColor:{r:0,g:0,b:0},dominantHue:0,warmCool:0,zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});renderAdaptive({brightness:50,speed:50,reaction:50,sceneType:"NORMAL"});renderZoneAnalysis({zones:ZN.map(n=>({name:n,r:0,g:0,b:0,luminance:0}))});
+if(localESPPage){
+  espHost=location.hostname; espPort=Number(location.port)||8080;
+  espIP=espHost+(espPort!==8080?":"+espPort:"");
+  $("connectModal").style.display="none";
+  loadAll();
+}else if(espIP && !securePage){
+  try{setESPAddress(espIP);loadAll()}catch(e){$("connectModal").style.display="flex"}
+}else $("connectModal").style.display="flex";
+if(securePage){$("modalIP").value=localStorage.getItem("ab_ip")||"192.168.1.228";}
+setInterval(async()=>{if(!espHost||securePage)return;try{const s=await apiGet("/api/state");config={...config,...normalizeState(s)};updateConn(true,config.tv_online);renderStats(config);renderDiag(config);renderTVStatus(config)}catch(e){updateConn(false)}},8000);
+console.log("🚀 Ambilight Bridge v5.6.3 · ChaosWave Mood · Ready");
+</script>
+</body>
+</html>
+
+)AMB_CC_HTML";
