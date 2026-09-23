@@ -1379,7 +1379,7 @@ static inline uint8_t moodNoise(uint16_t x,uint16_t y,uint8_t turb){
 static inline uint8_t moodTurb8(uint16_t coord,uint16_t t,uint8_t turb){
   uint16_t f=48u+(uint16_t)turb;                       // ~0.75x .. 4.7x térbeli frekvencia
   uint16_t x=(uint16_t)(((uint32_t)coord*f)>>6);
-  return noise8(x,t);
+  return inoise8(x,t);
 }
 static CRGB moodColor(const MoodConfig& m,uint16_t i,uint16_t count,bool right,uint8_t sideOffset=0){
   const uint8_t phase=moodPhase(m.speed,sideOffset);
