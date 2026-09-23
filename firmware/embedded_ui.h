@@ -174,8 +174,9 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--primary);cursor:p
 .checkRow{display:flex;align-items:center;gap:9px;padding:6px 0}
 .checkRow label{margin:0;font-size:12px;color:var(--text);text-transform:none;letter-spacing:0;font-weight:600}
 .rangeRow{display:flex;align-items:center;gap:11px}
-.rangeRow input[type=range]{flex:1}.rangeRow span{font-size:11px;color:var(--soft);min-width:52px;text-align:right;font-weight:590;font-variant-numeric:tabular-nums}
+.rangeRow input[type=range]{flex:1}.rangeRow span{font-size:12px;color:var(--soft);min-width:50px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums}.rangeRow label{font-size:11px;color:var(--soft);font-weight:600}
 .unitField{display:flex;align-items:center;gap:6px}.unitField input{flex:1;width:auto;min-width:0}.unitSuffix{flex:0 0 auto;font-size:11px;font-weight:650;color:var(--soft);min-width:22px}.unitHint{font-size:9px;color:var(--muted);line-height:1.4;margin-top:5px}.sectionNote{padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.42);font-size:10px;color:var(--muted);line-height:1.5;margin-top:10px}
+.off{opacity:.55}.off input[type=range]{filter:grayscale(1)}.offTag{display:inline-block;margin-left:5px;padding:1px 5px;border-radius:6px;background:#e7ebf3;color:var(--muted);font-size:8px;font-weight:800;letter-spacing:.5px;vertical-align:middle}
 input:disabled{opacity:.55;cursor:not-allowed}
 /* ── Buttons ─────────────────────────────────────────────────── */
 .btn{display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border-radius:var(--r-pill);
@@ -342,7 +343,7 @@ padding:30px 32px;max-width:460px;width:calc(100% - 36px);box-shadow:0 40px 90px
   </div>
   <div class="g2" style="margin-top:14px">
     <div class="card"><div class="cardHead"><span class="cardIcon">📐</span><h3>Zóna <b>Analízis</b></h3></div><div class="g2" id="zoneAnalysis" style="gap:8px"></div></div>
-    <div class="card"><div class="cardHead"><span class="cardIcon">🧠</span><h3>Smart Engine <b>Státusz</b></h3></div><div id="engineStatus"></div><div class="unitHint">A Scene Analyzer és Adaptive Controller jelenleg böngésző-oldali elemzés/előnézet; a v5.6.1 nem küldi automatikusan az adaptív értékeket firmware-paraméterként.</div></div>
+    <div class="card"><div class="cardHead"><span class="cardIcon">🧠</span><h3>Smart Engine <b>Státusz</b></h3></div><div id="engineStatus"></div><div class="unitHint">A Scene Analyzer és Adaptive Controller jelenleg böngésző-oldali elemzés/előnézet; a v5.6.3 nem küldi automatikusan az adaptív értékeket firmware-paraméterként.</div></div>
   </div>
 </section>
 
@@ -735,6 +736,7 @@ function updateMapperPreview(){
 }
 
 /* ── Dash stats ─────────────────────────────────────────────────── */
+
 function pctFrom255(v){return Math.round(Math.max(0,Math.min(255,Number(v)||0))*100/255)}
 function raw255FromPct(v){return Math.round(Math.max(0,Math.min(100,Number(v)||0))*255/100)}
 function formatDurationSeconds(v){
@@ -900,16 +902,28 @@ function setVal(id,v){const e=$(id);if(e)e.value=v}
 /* Kanonikus Mood ID contract 0–22 — a firmware MOOD_FX_NAMES[]-szal pontosan egyező sorrend */
 const EFFECTS=["Static","Breathe","Rainbow","Slow Color","Warm","Color Wave","Comet","Twinkle","Plasma","Fire","Palette Wave","Aurora","Ocean","Fire 2","Energy Pulse","Meteor Shower","Nebula","Starfield","Organic Flow","Cyber Flow","Spectral","Lava Lamp","Plasma X"];
 const FX_COUNT=EFFECTS.length; /* 23 */
+/* Firmware v5.6.3 Mood-motor: mind a 23 effekt saját renderelési ággal rendelkezik; a turbulencia 8 zaj-alapú effektre hat. */
+const MOOD_IMPLEMENTED=new Set(Array.from({length:FX_COUNT},(_,i)=>i));
 const PALETTES=["RED","Scarlet","Orange","Amber","Gold","Yellow","Lime","Green","Spring","Emerald","Turquoise","Cyan","Sky","Blue","Royal Blue","Indigo","Violet","Purple","Magenta","Pink","Rose","Crimson","Deep Red","Ice White"];
 function moodForm(side){
   return `<div class="checkRow"><input type="checkbox" id="m_${side}_on" checked><label>Engedélyezve</label></div>
-<div><label>Effekt</label><select id="m_${side}_eff">${EFFECTS.map((e,i)=>`<option value="${i}">${e}</option>`).join("")}</select></div>
-<div class="checkRow"><input type="checkbox" id="m_${side}_auto"><label>Auto szín (TV)</label></div>
-<div class="rangeRow"><label style="min-width:60px">Hue</label><input type="range" id="m_${side}_hue" min="0" max="360" value="210"><span id="m_${side}_hueV">210°</span></div>
-<div class="frow3"><div class="rangeRow"><label>Telítettség</label><input type="range" id="m_${side}_sat" min="0" max="100" value="86"><span id="m_${side}_satV" style="font-size:9px">86 %</span></div><div class="rangeRow"><label>Fényerő</label><input type="range" id="m_${side}_bri" min="0" max="100" value="43"><span id="m_${side}_briV" style="font-size:9px">43 %</span></div><div class="rangeRow"><label>Sebesség</label><input type="range" id="m_${side}_sp" min="0" max="100" value="28"><span id="m_${side}_spV" style="font-size:9px">28 %</span></div></div>
+<div><label>Effekt</label><select id="m_${side}_eff">${EFFECTS.map((e,i)=>`<option value="${i}">${e}${MOOD_IMPLEMENTED.has(i)?"":" · nem implementált"}</option>`).join("")}</select></div>
+<div class="sectionNote">✅ Mind a 23 effekt aktív. Hue, Telítettség, Fényerő, Sebesség, Skála, Mozgás, Fényudvar, Sűrűség, Örvénylés, Paletta, Színmód, Auto TV és Fordítás közvetlenül a Mood motor működését vezérli.</div>
+<div class="rangeRow"><label style="min-width:96px">Hue</label><input type="range" id="m_${side}_hue" min="0" max="360" value="210"><span id="m_${side}_hueV">210°</span></div>
+<div class="frow">
+  <div class="rangeRow"><label style="min-width:70px">Telítettség</label><input type="range" id="m_${side}_sat" min="0" max="100" value="86"><span id="m_${side}_satV">86 %</span></div>
+  <div class="rangeRow"><label style="min-width:56px">Fényerő</label><input type="range" id="m_${side}_bri" min="0" max="100" value="43"><span id="m_${side}_briV">43 %</span></div>
+</div>
+<div class="rangeRow"><label style="min-width:96px">Sebesség</label><input type="range" id="m_${side}_sp" min="0" max="100" value="28"><span id="m_${side}_spV">28 %</span></div>
+<div class="rangeRow"><label style="min-width:96px">Mozgás</label><input type="range" id="m_${side}_mot" min="0" max="100" value="65"><span id="m_${side}_motV">65 %</span></div>
+<div class="rangeRow"><label style="min-width:96px">Sűrűség <small style="opacity:.6">(Twinkle)</small></label><input type="range" id="m_${side}_den" min="0" max="100" value="55"><span id="m_${side}_denV">55 %</span></div>
+<div class="sectionNote">A fejlett Mood-paraméterek valós időben a renderelőre hatnak; a nagyobb Skála sűrűbb mintázatot, a Fényudvar magasabb alapfényű kiemelést ad. Az Örvénylés (turbulencia) a zaj-alapú effektekre hat: FIRE, FIRE 2, ORGANIC FLOW, LAVA LAMP, STARFIELD, TWINKLE, NEBULA és PLASMA X — minimális értéken sima/nagy foltok, magasabban sűrűbb, kaotikusabb mintázat.</div>
+<div class="rangeRow"><label style="min-width:96px">Skála</label><input type="range" id="m_${side}_sc" min="0" max="100" value="70"><span id="m_${side}_scV">70 %</span></div>
+<div class="rangeRow"><label style="min-width:96px">Fényudvar</label><input type="range" id="m_${side}_gl" min="0" max="100" value="75"><span id="m_${side}_glV">75 %</span></div>
+<div class="rangeRow"><label style="min-width:96px">Örvénylés</label><input type="range" id="m_${side}_tur" min="0" max="100" value="45"><span id="m_${side}_turV">45 %</span></div>
 <div><label>Paletta</label><select id="m_${side}_pal">${PALETTES.map((e,i)=>`<option value="${i}">${e}</option>`).join("")}</select></div>
-<div class="frow3"><div class="rangeRow"><label>Skála</label><input type="range" id="m_${side}_sc" min="0" max="100" value="70"><span id="m_${side}_scV" style="font-size:9px">70 %</span></div><div class="rangeRow"><label>Mozgás</label><input type="range" id="m_${side}_mot" min="0" max="100" value="65"><span id="m_${side}_motV" style="font-size:9px">65 %</span></div><div class="rangeRow"><label>Fényudvar</label><input type="range" id="m_${side}_gl" min="0" max="100" value="75"><span id="m_${side}_glV" style="font-size:9px">75 %</span></div></div>
-<div class="frow3"><div class="rangeRow"><label>Sűrűség</label><input type="range" id="m_${side}_den" min="0" max="100" value="55"><span id="m_${side}_denV" style="font-size:9px">55 %</span></div><div class="rangeRow"><label>Örvénylés</label><input type="range" id="m_${side}_tur" min="0" max="100" value="45"><span id="m_${side}_turV" style="font-size:9px">45 %</span></div><div><label>Színmód</label><select id="m_${side}_cm"><option value="0">Paletta</option><option value="1">Fix hue</option><option value="2">Auto TV</option><option value="3">Hue gradiens</option></select></div></div>
+<div><label>Színmód</label><select id="m_${side}_cm"><option value="0">Paletta</option><option value="1">Fix hue</option><option value="2">Auto TV</option><option value="3">Hue gradiens</option></select></div>
+<div class="checkRow"><input type="checkbox" id="m_${side}_auto"><label>Auto szín (TV)</label></div>
 <div class="checkRow"><input type="checkbox" id="m_${side}_rev"><label>Fordított</label></div>`;
 }
 function applyMood(side,m){
@@ -984,23 +998,3 @@ function collectCfg(){
     mood_link:+$("moodLinkSel").value,
     left:colMood("left"),right:colMood("right"),
     segments:collectSegs()
-  };
-}
-
-/* ── Actions ────────────────────────────────────────────────────── */
-async function saveConfig(){
-  let step="TV";
-  try{
-    const cfg=collectCfg();
-    // TV IP is persisted first, independently from the larger configuration transaction.
-    if($("cfgTvIP").value) await apiFormPost("/api/tv",{ip:$("cfgTvIP").value});
-    step="CONFIG";
-    await apiFormPost("/api/config",{brightness:cfg.brightness,smoothing:cfg.smoothing,blackThreshold:cfg.black_threshold,
-      dyn_on:cfg.dyn_on?1:0,dyn_min:cfg.dyn_min,dyn_max:cfg.dyn_max,dyn_resp:cfg.dyn_resp,
-      mood_dyn:cfg.mood_dyn?1:0,mood_dep:cfg.mood_dep,tv_sync:cfg.tv_sync?1:0,tv_bsync:cfg.tv_bsync?1:0,amb_src:cfg.amb_src});
-    step="MAPPER";
-    await apiPost("/api/mapper",{segments:cfg.segments});
-    step="MOOD";
-    const moodArgs=(side)=>({
-      [side+"Mode"]:cfg[side].mode?1:0,[side+"Effect"]:cfg[side].effect,[side+"Hue"]:cfg[side].hue,
-)AMB_CC_HTML";
