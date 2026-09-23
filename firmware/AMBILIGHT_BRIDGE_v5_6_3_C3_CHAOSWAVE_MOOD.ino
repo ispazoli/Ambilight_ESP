@@ -997,3 +997,718 @@ void connectWiFi(){
   if(ssid.length()==0){ ssid=SECRET_WIFI_SSID; pass=SECRET_WIFI_PASS; }
 #endif
   if(ssid.length()==0){ Serial.println("[WiFi] nincs tárolt SSID → provisioning"); startProvisioningAP(); return; }
+
+  // Normal boot / reconnect starts STA-only.
+  if(WiFi.getMode()==WIFI_AP || WiFi.getMode()==WIFI_AP_STA){
+    WiFi.softAPdisconnect(true);
+  }
+  WiFi.mode(WIFI_STA);
+  WiFi.setHostname("ambilight");
+  WiFi.setAutoReconnect(true);            // az stack is próbálkozzon önmagától
+  WiFi.persistent(false);
+  WiFi.begin(ssid.c_str(),pass.c_str());
+  WiFi.setSleep(false);              // Realtime WS: modem-sleep kikapcsolva
+  wifiConnectInProgress=true; wifiAttemptStarted=millis();
+  staConnectDeadline=millis()+AP_FALLBACK_MS;
+  Serial.printf("[WiFi] csatlakozás: %s\n",ssid.c_str());
+}
+
+void onWiFiConnected(){
+  wifiConnectInProgress=false;
+
+  // Critical AP lifecycle fix: never remain in AP+STA after provisioning.
+  if(provisioningMode){
+    stopProvisioningAP();
+  }else{
+    WiFi.mode(WIFI_STA);
+  }
+
+  Serial.printf("[WiFi] OK — IP: %s\n",WiFi.localIP().toString().c_str());
+  if(MDNS.begin("ambilight")){
+    MDNS.addService("http","tcp",8080);
+    Serial.println("[mDNS] ambilight.local");
+  }
+  startWebServices();
+  if(tvIP!=IPAddress(0,0,0,0)) detectTVTopology();
+}
+
+void handleWiFi(){
+  static wl_status_t last=WL_IDLE_STATUS;
+  static unsigned long lastReconnectAttempt=0;
+  static uint32_t reconnectBackoffMs=5000;   // 5s -> ... -> 60s cap
+  wl_status_t s=WiFi.status();
+
+  if(wifiConnectInProgress){
+    if(s==WL_CONNECTED){
+      onWiFiConnected();
+      reconnectBackoffMs=5000;
+    }else if((long)(millis()-staConnectDeadline) >= 0){   // overflow-biztos
+      Serial.println("[WiFi] időtúllépés → provisioning AP");
+      wifiConnectInProgress=false;
+      startProvisioningAP();
+    }
+  }else if(!provisioningMode){
+    if(s==WL_CONNECTED){
+      reconnectBackoffMs=5000;             // egészséges kapcsolat: backoff reset
+    }else{
+      // Nem csak az átmenetkor, hanem periodikusan is próbálunk újracsatlakozni,
+      // növekvő backoff-fal. Így egy sikertelen reconnect nem "ragad be" reboot-ig.
+      unsigned long now=millis();
+      if(last==WL_CONNECTED){
+        Serial.println("[WiFi] kapcsolat elveszett — újracsatlakozás");
+        WiFi.reconnect();
+        lastReconnectAttempt=now;
+      }else if(now-lastReconnectAttempt>=reconnectBackoffMs){
+        Serial.printf("[WiFi] újracsatlakozási kísérlet (backoff=%lums)\n",(unsigned long)reconnectBackoffMs);
+        WiFi.reconnect();
+        lastReconnectAttempt=now;
+        reconnectBackoffMs = (reconnectBackoffMs>=60000)?60000:(reconnectBackoffMs*2);
+      }
+    }
+  }
+
+  last=s;
+}
+
+/* ===== TV KAPCSOLAT (Philips JointSPACE, TCP 1925) ===================== */
+
+bool tvConnect(){
+  if(tvClient.connected())return true;
+  if(tvIP==IPAddress(0,0,0,0))return false;
+  tvClient.stop();
+  if(!tvClient.connect(tvIP,1925)){ return false; }
+  tvClient.setTimeout(TV_SOCKET_TIMEOUT_MS);   // [E2] konstansból, nem magic number
+  tvSocketAlive=true;
+  return true;
+}
+
+// Rövid HTTP GET a JointSPACE-hez; a válasz JSON-ját buf-ba olvassuk.
+// Puffer-alapú fejléc-parse (nincs String — nincs O(n²)/heap-fragmentáció).
+int tvGet(const char* path, char* buf, size_t bufLen){
+  if(!tvConnect())return -1;
+  tvClient.printf("GET %s HTTP/1.0\r\nHost: %s\r\nConnection: close\r\n\r\n",
+                  path, tvIP.toString().c_str());
+  unsigned long t0=millis(); size_t n=0; bool headersDone=false; int contentLen=-1;
+  char hdr[512]; size_t hlen=0; int mi=0; static const char MARK[]="\r\n\r\n";
+  while(millis()-t0<TV_BODY_READ_TIMEOUT_MS){
+    while(tvClient.available()){
+      char c=tvClient.read();
+      if(!headersDone){
+        if(hlen<sizeof(hdr)-1) hdr[hlen++]=c;
+        // \r\n\r\n határ detektálása állapotgéppel
+        if(c==MARK[mi]) mi++; else mi=(c==MARK[0])?1:0;
+        if(mi==4){
+          headersDone=true; hdr[hlen]='\0';
+          char* ci=strstr(hdr,"Content-Length:");
+          if(!ci) ci=strstr(hdr,"content-length:");
+          if(ci) contentLen=atoi(ci+15);
+        }
+      } else {
+        if(n<bufLen-1) buf[n++]=c;
+        if(contentLen>0 && (int)n>=contentLen) goto done;
+      }
+    }
+    if(headersDone && contentLen<0 && n>0 && !tvClient.available()) break;
+    delay(1);
+  }
+done:
+  buf[n]='\0';
+  tvClient.stop(); tvSocketAlive=false;
+  return (int)n;
+}
+
+// [M3/M4] readAmbilight: brace-count korai kilépés + közvetlen deserializeJson(tvRawBuf)
+bool readAmbilight(){
+  if(!tvConnect())return false;
+  // [5.6.0] a forrás (measured/processed) konfigurálható; a JSON-struktúra
+  //         (layer1.left/right.0/1) mindkét végponton azonos → a parse változatlan.
+  const char* ambPath = (ambilightSource==AMB_SRC_PROCESSED)
+                          ? "/1/ambilight/processed"
+                          : "/1/ambilight/measured";
+  tvClient.printf("GET %s HTTP/1.0\r\nHost: %s\r\nConnection: close\r\n\r\n",
+                  ambPath, tvIP.toString().c_str());
+  unsigned long t0=millis(); size_t n=0; bool headersDone=false;
+  int depth=0; bool bodyStarted=false, inString=false, escape=false;
+  int mi=0; static const char MARK[]="\r\n\r\n";   // fejléc-határ detektor (nincs String)
+  // [M4] a törőjel-számlálóval korrekt módon észleljük a JSON végét → korai kilépés
+  while(millis()-t0<TV_AMBILIGHT_READ_TIMEOUT_MS){
+    while(tvClient.available()){
+      char c=tvClient.read();
+      if(!headersDone){
+        if(c==MARK[mi]) mi++; else mi=(c==MARK[0])?1:0;
+        if(mi==4) headersDone=true;
+        continue;
+      }
+      if(n<sizeof(tvRawBuf)-1) tvRawBuf[n++]=c; else goto stop; // [M3] tvRawBuf túlcsordulás-védelem
+      // brace-count csak a body-ra
+      if(escape){escape=false;}
+      else if(c=='\\'){escape=true;}
+      else if(c=='"'){inString=!inString;}
+      else if(!inString){
+        if(c=='{'){depth++;bodyStarted=true;}
+        else if(c=='}'){depth--; if(bodyStarted&&depth==0){goto stop;}} // korai kilépés
+      }
+    }
+    delay(1);
+  }
+stop:
+  tvRawBuf[n]='\0';
+  tvClient.stop(); tvSocketAlive=false;
+  if(n==0){ badFrames++; return false; }
+  // [M3] közvetlenül a pufferből deserializálunk — nincs több String-másolás
+  JsonDocument d;
+  DeserializationError e=deserializeJson(d,tvRawBuf);
+  if(e){ badFrames++; return false; }
+  JsonObject layer1=d["layer1"];
+  if(layer1.isNull()){ badFrames++; return false; }
+  // bal + jobb oszlop átlaga a 4 zónához (felső/alsó bal, felső/alsó jobb)
+  auto pix=[&](const char* side, const char* idx, ZoneRGB& out)->bool{
+    JsonObject col=layer1[side]; if(col.isNull())return false;
+    JsonObject p=col[idx]; if(p.isNull())return false;
+    out.r=p["r"]|0; out.g=p["g"]|0; out.b=p["b"]|0; return true;
+  };
+  ZoneRGB lt{},lb{},rt{},rb{};
+  bool ok = pix("left","0",lt) && pix("left","1",lb) && pix("right","0",rt) && pix("right","1",rb);
+  if(!ok){ badFrames++; return false; }
+  targetZones[0]=lt; targetZones[1]=lb; targetZones[2]=rt; targetZones[3]=rb;
+  goodFrames++; lastSuccessfulPoll=millis(); tvConsecutiveFailures=0;
+  // A sikeres valódi Ambilight-keret bizonyítja, hogy a TV aktívan szolgáltat
+  // képadatot, ezért az esetleg korábban beragadt power-state tiltást feloldjuk.
+  tvOutputOff=false;
+  // [FIX] Az ONLINE állapot KIZÁRÓLAG tényleges sikeres keretből származik
+  //       (esemény-vezérelt), nem időzítőből → nincs többé hamis "[TV] online"
+  //       közvetlenül boot után (a korábbi lastSuccessfulPoll=0 sentinel-bug).
+  if(!tvOnline){ tvOnline=true; Serial.println("[TV] online"); }
+  return true;
+}
+
+// [5.6.1] TV státusz lekérdezés: egyetlen JointSPACE v1 végpont/ciklus.
+// A TV-n a keep-alive nem stabil, ezért a meglévő connect/close marad;
+// a négy státusz-végpont rotációban fut (~1.25 s-onként egy kérés).
+void pollTVStatus(){
+  if(!tvOnline){ tvMasterBrightnessAvailable=false; return; }
+  int n=-1; JsonDocument d;
+  switch(tvStatusSlot){
+    case 0: {
+      n=tvGet("/1/sources/current",tvJsonBuf,sizeof(tvJsonBuf));
+      if(n>0 && !deserializeJson(d,tvJsonBuf)){ const char* id=d["id"]|""; if(id[0]) tvStatSource=id; }
+      break;
+    }
+    case 1: {
+      n=tvGet("/1/channels/current",tvJsonBuf,sizeof(tvJsonBuf));
+      if(n>0 && !deserializeJson(d,tvJsonBuf)){
+        if(d["id"].is<const char*>()) tvStatChannel=(const char*)d["id"];
+        else if(d["id"].is<int>()) tvStatChannel=String(d["id"].as<int>());
+      }
+      break;
+    }
+    case 2: {
+      n=tvGet("/1/audio/volume",tvJsonBuf,sizeof(tvJsonBuf));
+      if(n>0 && !deserializeJson(d,tvJsonBuf)){
+        if(d["current"].is<int>()) tvStatVolume=d["current"].as<int>();
+        if(d["max"].is<int>()) tvStatVolMax=d["max"].as<int>();
+        tvStatMuted=d["muted"]|false;
+      }
+      break;
+    }
+    default: {
+      n=tvGet("/1/ambilight/mode",tvJsonBuf,sizeof(tvJsonBuf));
+      if(n>0 && !deserializeJson(d,tvJsonBuf)){ const char* m=d["current"]|""; if(m[0]) tvStatMode=m; }
+      break;
+    }
+  }
+  tvStatusSlot=(uint8_t)((tvStatusSlot+1u)&3u);
+  tvMasterBrightnessAvailable=false;
+}
+
+void handleTVWatchdog(){
+  unsigned long now=millis();
+  // [FIX] A watchdog CSAK OFFLINE-ra vált — az ONLINE mindig eseményből jön
+  //       (readAmbilight() sikeres keret). Így megszűnik a boot utáni hamis
+  //       "[TV] online" → "[TV] offline" páros, amit a lastSuccessfulPoll=0
+  //       kezdőérték okozott (now-0 < TV_STALE_TIMEOUT_MS igaz volt induláskor).
+  if(tvOnline){
+    bool tooManyFails = (tvConsecutiveFailures>=TV_FAILURES_BEFORE_OFFLINE);
+    // stale csak akkor értelmezhető, ha már VOLT sikeres poll (lastSuccessfulPoll!=0)
+    bool stale = (lastSuccessfulPoll!=0 && (now-lastSuccessfulPoll)>=TV_STALE_TIMEOUT_MS);
+    if(tooManyFails || stale){ tvOnline=false; tvOutputOff=true; Serial.println("[TV] offline"); }
+  }
+}
+
+/* ===== LED RENDER ======================================================= */
+
+// A szegmens forrás-módjából (SourceMode) számítja ki a megfelelő színt.
+// 4 zóna: [0]=bal-felső(L0) [1]=bal-alsó(L1) [2]=jobb-felső(R0) [3]=jobb-alsó(R1)
+CRGB zoneFromSource(uint8_t source){
+  ZoneRGB z={0,0,0}; switch(source){
+    case SRC_BLACK:z={0,0,0};break; case SRC_L0:z=currentZones[0];break; case SRC_L1:z=currentZones[1];break; case SRC_R0:z=currentZones[2];break; case SRC_R1:z=currentZones[3];break;
+    case SRC_L_AVG:z=mix2(currentZones[0],currentZones[1]);break; case SRC_R_AVG:z=mix2(currentZones[2],currentZones[3]);break; case SRC_ALL_AVG:z=mix2(mix2(currentZones[0],currentZones[1]),mix2(currentZones[2],currentZones[3]));break;
+    case SRC_LR_TOP_MIX:z=mix2(currentZones[0],currentZones[2]);break; case SRC_LR_BOTTOM_MIX:z=mix2(currentZones[1],currentZones[3]);break;
+    case SRC_VERTICAL_AVG:z=mix2(mix2(currentZones[0],currentZones[2]),mix2(currentZones[1],currentZones[3]));break;
+    case SRC_L0_R0_BLEND:z=mix2(currentZones[0],currentZones[2]);break; case SRC_L1_R1_BLEND:z=mix2(currentZones[1],currentZones[3]);break; default:z=currentZones[0];break; } return CRGB(z.r,z.g,z.b);
+}
+CRGB gradientSource(uint8_t source,float t){
+  t=constrain(t,0.0f,1.0f); ZoneRGB a,b;
+  switch(source){case SRC_GRADIENT_TOP:a=currentZones[0];b=currentZones[2];break;case SRC_GRADIENT_RIGHT:a=currentZones[2];b=currentZones[3];break;case SRC_GRADIENT_BOTTOM:a=currentZones[1];b=currentZones[3];break;case SRC_GRADIENT_LEFT:a=currentZones[0];b=currentZones[1];break;default:return zoneFromSource(source);}
+  return CRGB((uint8_t)(a.r+(b.r-a.r)*t),(uint8_t)(a.g+(b.g-a.g)*t),(uint8_t)(a.b+(b.b-a.b)*t));
+}
+
+void renderZonesToLeds(){
+  // [FIX] blackThreshold tényleges alkalmazása: küszöb alatti zónák feketére
+  if(blackThreshold>0){
+    for(int i=0;i<4;i++){
+      uint8_t mx=max(max(targetZones[i].r,targetZones[i].g),targetZones[i].b);
+      if(mx<blackThreshold) targetZones[i]=ZoneRGB{0,0,0};
+    }
+  }
+  uint8_t sm=smoothing; for(int i=0;i<4;i++){int k=255-sm;currentZones[i].r+=(targetZones[i].r-currentZones[i].r)*k/255;currentZones[i].g+=(targetZones[i].g-currentZones[i].g)*k/255;currentZones[i].b+=(targetZones[i].b-currentZones[i].b)*k/255;}
+  fill_solid(leds,LED_COUNT,CRGB::Black); bool written[LED_COUNT]={false};
+  // Mapper owns the physical LED output unless TV Master Sync + Side Clone
+  // is active. In that combined mode only BOTTOM and TOP remain mapper-driven.
+  for(uint8_t s=0;s<segmentCount && s<MAX_SEGMENTS;s++){
+    LedSegment &sg=segments[s];
+    if(!mapperValid(sg)) continue;
+    for(uint16_t i=0;i<sg.count;i++){
+      uint16_t idx=sg.reverse?(sg.start+sg.count-1-i):(sg.start+i);
+      if(mapperLedIsClonedSide(idx)) continue;
+      float t=sg.count>1?(float)i/(float)(sg.count-1):0.0f;
+      CRGB col=(sg.source>=SRC_GRADIENT_TOP&&sg.source<=SRC_GRADIENT_LEFT)?gradientSource(sg.source,t):zoneFromSource(sg.source);
+      col.nscale8(sg.brightness); leds[idx]=col; written[idx]=true;
+    }
+  }
+
+  if(sideCloneEnabled){
+    // With the combined TV Master Sync + Side Clone mode the clone targets
+    // are fixed to LEFT 30..59 and RIGHT 90..119. This deliberately ignores
+    // mapper settings and user-defined clone ranges for these physical sides.
+    const uint16_t leftStart  = mapperSideBypassActive() ? 30 : cloneLeftStart;
+    const uint16_t leftCount  = mapperSideBypassActive() ? 30 : cloneLeftCount;
+    const uint16_t rightStart = mapperSideBypassActive() ? 90 : cloneRightStart;
+    const uint16_t rightCount = mapperSideBypassActive() ? 30 : cloneRightCount;
+
+    CRGB l=zoneFromSource(SRC_L_AVG); CRGB r=zoneFromSource(SRC_R_AVG);
+    l.nscale8(sideCloneBrightness); r.nscale8(sideCloneBrightness);
+
+    for(uint16_t i=0;i<leftCount;i++){
+      uint16_t idx=cloneLeftRev?(leftStart+leftCount-1-i):(leftStart+i);
+      if(idx<LED_COUNT&&!written[idx])leds[idx]=l;
+    }
+    for(uint16_t i=0;i<rightCount;i++){
+      uint16_t idx=cloneRightRev?(rightStart+rightCount-1-i):(rightStart+i);
+      if(idx<LED_COUNT&&!written[idx])leds[idx]=r;
+    }
+  }
+}
+
+// [FIX] Effektív fBényerő: globális × (opcionális) TV-master × (opcionális) dinamikus.
+// Korábban a dyn_* és a tv master brightness holt beállítások voltak — most élnek.
+uint8_t effectiveBrightness(){
+  int br=globalBrightness;
+  if(tvMasterBrightnessEnabled && tvMasterBrightnessAvailable){
+    br=(br*(int)tvMasterBrightness)/255;
+  }
+  if(dynBrightEnabled){
+    uint8_t lum=sceneLuminance();                       // 0..255 jelenet-fényesség
+    int dyn=dynBrightMin + ((int)(dynBrightMax-dynBrightMin)*lum)/255;
+    // dynBrightResp: 0 = statikus (globális), 255 = teljesen jelenetkövető
+    br=(br*(255-dynBrightResp) + dyn*dynBrightResp)/255;
+  }
+  return (uint8_t)constrain(br,0,255);
+}
+
+void showLeds(){
+  if(ledTestActive){
+    if(millis()<ledTestUntil){ fill_solid(leds,LED_COUNT,ledTestColor); FastLED.setBrightness(255); FastLED.show(); return; }
+    ledTestActive=false;
+  }
+  if(tvOutputOff){ FastLED.clear(); FastLED.show(); return; }
+  FastLED.setBrightness(effectiveBrightness());
+  FastLED.show();
+}
+
+/* ===== MOOD ENGINE ====================================================== */
+
+// [MOOD 5.6.2] Unified 23-effect engine. All animation paths use the same
+// speed clock; palette/color-mode/reverse/scale/glow/turbulence are consumed
+// here so the UI parameters are functional rather than persistence-only.
+static const uint8_t MOOD_PALETTE_HUE8[24] = {
+  0,4,16,24,32,42,64,85,96,110,120,128,140,160,176,192,208,220,232,240,248,252,255,0
+};
+static const uint8_t MOOD_PALETTE_SAT[24] = {
+  255,255,255,255,245,235,230,220,215,210,205,200,190,220,245,235,220,225,230,220,210,245,255,0
+};
+static inline uint8_t hue360To8(uint16_t h){ return (uint8_t)(((uint32_t)h*256u)/360u); }
+static inline uint8_t moodBpm(uint8_t speed){ return (uint8_t)(3u + scale8(speed,77)); } // 3..80 BPM
+static inline uint8_t moodPhase(uint8_t speed,uint8_t sideOffset){ return beat8(moodBpm(speed),sideOffset); }
+static inline uint8_t moodPos(uint16_t i,uint16_t count,uint8_t scale){
+  uint8_t p=(count>1)?(uint8_t)(((uint32_t)i*255u)/(count-1)):0;
+  uint8_t sc=(uint8_t)max<uint16_t>(1,scale);
+  return scale8(p,sc);
+}
+static CRGB moodTVColor(bool right){
+  ZoneRGB a=right?currentZones[2]:currentZones[0];
+  ZoneRGB b=right?currentZones[3]:currentZones[1];
+  CRGB c((uint8_t)(((uint16_t)a.r+b.r)/2),(uint8_t)(((uint16_t)a.g+b.g)/2),(uint8_t)(((uint16_t)a.b+b.b)/2));
+  if(c.r==0 && c.g==0 && c.b==0) return CRGB(255,255,255);
+  return c;
+}
+static inline void moodBase(const MoodConfig& m,uint16_t i,uint16_t count,bool right,uint8_t phase,uint8_t& h,uint8_t& sat){
+  uint8_t p=(count>1)?(uint8_t)(((uint32_t)i*255u)/(count-1)):0;
+  uint8_t cm=m.autoColor?2:m.colorMode;
+  if(cm==2){
+    CHSV tv=rgb2hsv_approximate(moodTVColor(right)); h=tv.h; sat=tv.s;
+  }else if(cm==0){
+    uint8_t pi=min<uint8_t>(m.palette,23); h=MOOD_PALETTE_HUE8[pi]; sat=MOOD_PALETTE_SAT[pi];
+  }else{
+    h=hue360To8(m.hue); sat=m.saturation;
+  }
+  if(cm==3) h += p;
+  else if(cm!=2 && m.autoColor==false) h += 0;
+  h += phase;
+}
+static inline uint8_t moodGlow(uint8_t v,const MoodConfig& m){
+  uint8_t floor=scale8(m.brightness,scale8(m.glow,96));
+  return qadd8(floor,scale8(v,(uint8_t)(255u-scale8(m.glow,80))));
+}
+static inline uint8_t moodNoise(uint16_t x,uint16_t y,uint8_t turb){
+  uint8_t n=inoise8(x,y); return lerp8by8(128,n,turb);
+}
+// [5.6.3] Turbulencia mint térbeli frekvencia (káosz): 0 = sima/nagy foltok,
+// 255 = sűrű/kaotikus mintázat. Az amplitúdó változatlan marad, ezért a
+// küszöb-alapú effektek (TWINKLE/STARFIELD) sűrűsége is helyes marad, a
+// folyam-effektek (FIRE/FIRE2/ORGANIC/LAVA) pedig részletesebbé/kaotikusabbá válnak.
+static inline uint8_t moodTurb8(uint16_t coord,uint16_t t,uint8_t turb){
+  uint16_t f=48u+(uint16_t)turb;                       // ~0.75x .. 4.7x térbeli frekvencia
+  uint16_t x=(uint16_t)(((uint32_t)coord*f)>>6);
+  return noise8(x,t);
+}
+static CRGB moodColor(const MoodConfig& m,uint16_t i,uint16_t count,bool right,uint8_t sideOffset=0){
+  const uint8_t phase=moodPhase(m.speed,sideOffset);
+  const uint8_t p=moodPos(i,count,m.scale);
+  const uint16_t motion=(uint16_t)m.motion*2u;
+  const uint16_t x=(uint16_t)p*4u + phase + motion;
+  const uint8_t noise=moodNoise(x,(uint16_t)phase*3u + i*17u,m.turbulence);
+  uint8_t h=0,sat=m.saturation,v=m.brightness;
+  moodBase(m,i,count,right,0,h,sat); // effect owns temporal hue shift
+  uint8_t wave=sin8((uint8_t)(p + phase));
+  uint8_t wave2=sin8((uint8_t)(p*2u + phase));
+  switch(m.effect){
+    case MOOD_STATIC: break;
+    case MOOD_BREATHE: v=scale8(m.brightness, (uint8_t)(128u + scale8(sin8(phase),127))); break;
+    case MOOD_RAINBOW: h += p + phase; sat=255; break;
+    case MOOD_SLOW_COLOR: h += (uint8_t)(phase>>3); break;
+    case MOOD_WARM: h=12; sat=235; v=qadd8(scale8(m.brightness,150),scale8(wave,scale8(m.glow,105))); break;
+    case MOOD_COLOR_WAVE: h += scale8(p,96) + wave/3; break;
+    case MOOD_COMET: {
+      uint8_t head=phase, d=(head>=p)?head-p:p-head;
+      uint8_t tail=(uint8_t)max<uint16_t>(12,24u+scale8(m.scale,80));
+      uint8_t env=(d>=tail)?0:(uint8_t)(255u-((uint16_t)d*255u/tail));
+      v=qadd8(scale8(m.brightness,35),scale8(m.brightness,env));
+      h += phase/3;
+    } break;
+    case MOOD_TWINKLE: {
+      uint8_t n=moodTurb8((uint16_t)i*137u,phase*5u,m.turbulence); uint8_t threshold=(uint8_t)(255u-scale8(m.density,210));
+      v=(n>threshold)?m.brightness:scale8(m.brightness,scale8(m.glow,55));
+      h += n>>5;
+    } break;
+    case MOOD_PLASMA: v=scale8(m.brightness,(uint8_t)(55u+scale8((uint8_t)(wave+wave2),200))); h += wave/2; break;
+    case MOOD_FIRE: {
+      uint8_t f=moodTurb8((uint16_t)i*max<uint8_t>(1,m.scale),phase*2u,m.turbulence);
+      f=qadd8(f,scale8(m.density,90)); h=8u+scale8(f,20); sat=245; v=scale8(m.brightness,(uint8_t)(45u+scale8(f,210)));
+    } break;
+    case MOOD_PALETTE_WAVE: {
+      uint8_t pi=(uint8_t)((m.palette + (p>>5))%24); h=MOOD_PALETTE_HUE8[pi] + wave/8; sat=MOOD_PALETTE_SAT[pi]; v=qadd8(scale8(m.brightness,120),scale8(wave,scale8(m.glow,120)));
+    } break;
+    case MOOD_AURORA: h=scale8(wave,42)+118+phase/4; sat=scale8(m.saturation,210); v=scale8(m.brightness,(uint8_t)(70u+scale8(wave2,170))); break;
+    case MOOD_OCEAN: h=150+scale8(wave,28); sat=235; v=scale8(m.brightness,(uint8_t)(80u+scale8(wave2,160))); break;
+    case MOOD_FIRE2: {
+      uint8_t f=qadd8(moodTurb8((uint16_t)i*max<uint8_t>(1,m.scale/2+1),phase*3u,m.turbulence),scale8(wave,80));
+      h=2+scale8(f,30); sat=255; v=scale8(m.brightness,(uint8_t)(35u+scale8(f,220)));
+    } break;
+    case MOOD_PULSE: v=scale8(m.brightness,(uint8_t)(55u+scale8(sin8(phase),200))); break;
+    case MOOD_METEOR: {
+      uint8_t head=phase, d=(head>=p)?head-p:p-head; uint8_t tail=(uint8_t)max<uint16_t>(20,30u+scale8(m.density,70));
+      uint8_t env=(d>=tail)?0:(uint8_t)(255u-((uint16_t)d*255u/tail)); v=scale8(m.brightness,env); h += phase;
+    } break;
+    case MOOD_NEBULA: { uint8_t n=noise; h += 190u + scale8(n,35); sat=220; v=scale8(m.brightness,(uint8_t)(60u+scale8(n,190))); } break;
+    case MOOD_STARFIELD: { uint8_t n=moodTurb8((uint16_t)i*91u,phase*7u,m.turbulence); bool star=n>(uint8_t)(240u-scale8(m.density,180)); v=star?m.brightness:scale8(m.brightness,scale8(m.glow,35)); h += n>>4; } break;
+    case MOOD_ORGANIC: { uint8_t n=moodTurb8((uint16_t)i*max<uint8_t>(1,m.scale),phase+motion,m.turbulence); h += scale8(n,70); v=scale8(m.brightness,(uint8_t)(70u+scale8(n,170))); } break;
+    case MOOD_CYBER: h=150u+scale8(p,45)+phase/6; sat=255; v=((p>>4)&1)?m.brightness:scale8(m.brightness,scale8(m.glow,55)); break;
+    case MOOD_SPECTRAL: h=p+phase; sat=scale8(m.saturation,235); v=m.brightness; break;
+    case MOOD_LAVA: { uint8_t n=moodTurb8((uint16_t)i*max<uint8_t>(1,m.scale/2+1),phase,m.turbulence); h=5+scale8(n,18); sat=255; v=scale8(m.brightness,(uint8_t)(55u+scale8(n,195))); } break;
+    case MOOD_PLASMA_X: { uint8_t n=qadd8(wave,noise); h += (uint8_t)(wave2/2+n/3); sat=scale8(m.saturation,240); v=scale8(m.brightness,(uint8_t)(45u+scale8(n,210))); } break;
+    default: break;
+  }
+  v=moodGlow(v,m);
+  CHSV hsv(h,sat,v); CRGB c; hsv2rgb_rainbow(hsv,c); return c;
+}
+void renderMoodSide(const MoodConfig& m,uint16_t start,uint16_t count,bool rev,bool right,uint8_t sideOffset=0){
+  for(uint16_t i=0;i<count;i++){
+    uint16_t idx=rev?(start+count-1-i):(start+i); if(idx>=LED_COUNT)continue;
+    leds[idx]=(m.mode==0)?CRGB::Black:moodColor(m,i,count,right,sideOffset);
+  }
+}
+void renderMood(){
+  MoodConfig L=leftMood,R=rightMood; bool revL=L.reverse,revR=R.reverse; uint8_t offR=0;
+  bool rUsesOwnTVColor=true;
+  if(moodLinkMode==MOOD_LINK_MIRROR){R=L; revR=L.reverse; rUsesOwnTVColor=false;}
+  else if(moodLinkMode==MOOD_LINK_SYMMETRIC){R=L; revR=!L.reverse; R.hue=(uint16_t)((R.hue+180u)%360u); rUsesOwnTVColor=false;}
+  else if(moodLinkMode==MOOD_LINK_FLOW){R=L; revR=L.reverse; offR=128; rUsesOwnTVColor=false;}
+  renderMoodSide(L,moodLeftStart,moodLeftCount,revL,false,0);
+  renderMoodSide(R,moodRightStart,moodRightCount,revR,rUsesOwnTVColor,offR);
+}
+
+uint8_t moodSceneLuminance(){
+  uint32_t sum=0; uint16_t count=0;
+  const uint16_t starts[2]={moodLeftStart,moodRightStart};
+  const uint16_t counts[2]={moodLeftCount,moodRightCount};
+  for(uint8_t s=0;s<2;s++){
+    for(uint16_t i=0;i<counts[s];i++){
+      uint16_t idx=starts[s]+i; if(idx>=LED_COUNT)continue;
+      const CRGB &c=leds[idx]; sum+=max(max(c.r,c.g),c.b); count++;
+    }
+  }
+  return count?(uint8_t)(sum/count):0;
+}
+
+uint8_t effectiveMoodBrightness(){
+  int br=globalBrightness;
+  if(dynBrightEnabled){
+    uint8_t lum=moodSceneLuminance();
+    int dyn=dynBrightMin+((int)(dynBrightMax-dynBrightMin)*lum)/255;
+    br=(br*(255-dynBrightResp)+dyn*dynBrightResp)/255;
+  }
+  if(moodDynEnabled){
+    uint8_t lum=moodSceneLuminance();
+    int factor=255-(int)moodDynDepth+((int)moodDynDepth*lum)/255;
+    br=(br*factor)/255;
+  }
+  return (uint8_t)constrain(br,0,255);
+}
+
+/* ===== PERSISTENCE (NVS) =============================================== */
+
+void setDefaultMapping(){
+  // 12 fixed physical segments: 3 × 10 LEDs on each of the 4 sides.
+  // BOTTOM 0..29 | LEFT 30..59 | TOP 60..89 | RIGHT 90..119
+  const uint8_t src[MAPPER_SIDE_COUNT]={SRC_L0,SRC_L1,SRC_R0,SRC_R1};
+  segmentCount=MAX_SEGMENTS;
+  for(uint8_t i=0;i<MAX_SEGMENTS;i++){
+    uint8_t side=i/MAPPER_SEGMENTS_PER_SIDE;
+    segments[i].start=fixedSegmentStart(i);
+    segments[i].count=MAPPER_LEDS_PER_SEGMENT;
+    segments[i].source=src[side];
+    segments[i].brightness=255;
+    segments[i].reverse=false;
+  }
+}
+
+void saveConfig(bool includeMapper){
+  prefs.begin("cfg",false); prefs.putUChar("cfg_ver",CONFIG_SCHEMA_VERSION); prefs.putUChar("bright",globalBrightness); prefs.putUChar("smooth",smoothing); prefs.putUChar("black",blackThreshold);
+  prefs.putString("tvip",tvIP.toString());
+  // Webes jelszó: csak sózott hash kerül NVS-be (a régi nyílt "webpw" kulcsot töröljük).
+  prefs.remove("webpw");
+  prefs.putBool("webauth",webAuthConfigured);
+  prefs.putBool("webopt",webAuthOptOut);
+  if(webAuthConfigured){ prefs.putBytes("webslt",webAuthSalt,16); prefs.putBytes("webhsh",webAuthHash,32); }
+  else { prefs.remove("webslt"); prefs.remove("webhsh"); }
+  prefs.putUChar("lm_eff",leftMood.effect);prefs.putUChar("rm_eff",rightMood.effect);prefs.putUShort("lm_hue",leftMood.hue);prefs.putUShort("rm_hue",rightMood.hue);
+  prefs.putBool("lm_mode",leftMood.mode!=0); prefs.putBool("rm_mode",rightMood.mode!=0);
+  prefs.putUChar("lm_sat",leftMood.saturation);prefs.putUChar("rm_sat",rightMood.saturation);prefs.putUChar("lm_val",leftMood.brightness);prefs.putUChar("rm_val",rightMood.brightness);
+  prefs.putUChar("lm_sp",leftMood.speed);prefs.putUChar("rm_sp",rightMood.speed);
+  prefs.putUChar("lm_pal",leftMood.palette);prefs.putUChar("rm_pal",rightMood.palette);
+  prefs.putUChar("lm_sc",leftMood.scale);prefs.putUChar("rm_sc",rightMood.scale);
+  prefs.putUChar("lm_mot",leftMood.motion);prefs.putUChar("rm_mot",rightMood.motion);
+  prefs.putUChar("lm_gl",leftMood.glow);prefs.putUChar("rm_gl",rightMood.glow);
+  prefs.putUChar("lm_den",leftMood.density);prefs.putUChar("rm_den",rightMood.density);
+  prefs.putUChar("lm_tur",leftMood.turbulence);prefs.putUChar("rm_tur",rightMood.turbulence);
+  prefs.putUChar("lm_cm",leftMood.colorMode);prefs.putUChar("rm_cm",rightMood.colorMode);
+  prefs.putBool("lm_auto",leftMood.autoColor);prefs.putBool("rm_auto",rightMood.autoColor);
+  prefs.putBool("lm_rev",leftMood.reverse);prefs.putBool("rm_rev",rightMood.reverse);
+  prefs.putUChar("linkmode",(uint8_t)moodLinkMode);
+  prefs.putBool("dyn_en",dynBrightEnabled);prefs.putUChar("dyn_min",dynBrightMin);prefs.putUChar("dyn_max",dynBrightMax);prefs.putUChar("dyn_resp",dynBrightResp);
+  prefs.putBool("mood_dyn",moodDynEnabled);prefs.putUChar("mood_dep",moodDynDepth);
+  prefs.putBool("tv_sync",tvMasterSyncEnabled);prefs.putBool("tv_bsync",tvMasterBrightnessEnabled);
+  prefs.putUChar("amb_src",ambilightSource);
+  prefs.putBool("clone_en",sideCloneEnabled);prefs.putUChar("clone_br",sideCloneBrightness);prefs.putUShort("cl_st",cloneLeftStart);prefs.putUShort("cl_ct",cloneLeftCount);prefs.putUShort("cr_st",cloneRightStart);prefs.putUShort("cr_ct",cloneRightCount);prefs.putBool("cl_rev",cloneLeftRev);prefs.putBool("cr_rev",cloneRightRev);
+  prefs.end();
+  if(includeMapper) saveMapper();
+}
+
+void loadConfig(){
+  prefs.begin("cfg",true); bool fresh=!prefs.isKey("cfg_ver"); uint8_t stored=prefs.getUChar("cfg_ver",0);
+  tvIP=DEFAULT_TV_IP;
+  globalBrightness=prefs.getUChar("bright",DEFAULT_BRIGHTNESS); smoothing=prefs.getUChar("smooth",DEFAULT_SMOOTHING); blackThreshold=prefs.getUChar("black",DEFAULT_BLACK_THRESHOLD);
+  String tvs=prefs.getString("tvip",""); IPAddress ip; if(tvs.length()&&ip.fromString(tvs))tvIP=ip;
+  // Webes jelszó betöltése: elsődlegesen sózott hash (webslt/webhsh).
+  webAuthConfigured=prefs.getBool("webauth",false);
+  webAuthOptOut=prefs.getBool("webopt",false);
+  if(webAuthConfigured){
+    if(prefs.getBytes("webslt",webAuthSalt,16)!=16 || prefs.getBytes("webhsh",webAuthHash,32)!=32) webAuthConfigured=false;
+  }
+  // Migráció: ha még régi nyílt "webpw" van tárolva, hash-eljük és tovább viszük.
+  bool legacyAuthMigrated=false;
+  if(!webAuthConfigured){
+    String legacy=prefs.getString("webpw","");
+    if(legacy.length()){ setWebAuthPassword(legacy.c_str()); legacyAuthMigrated=true; }
+  }
+#ifdef SECRET_WEB_AUTH
+  if(!webAuthConfigured && strlen(SECRET_WEB_AUTH)>0) setWebAuthPassword(SECRET_WEB_AUTH);
+#endif
+#ifdef SECRET_TV_IP
+  if(tvIP==IPAddress(0,0,0,0))tvIP=IPAddress(SECRET_TV_IP);
+#endif
+  leftMood.mode=prefs.getBool("lm_mode",true); rightMood.mode=prefs.getBool("rm_mode",true);
+  leftMood.effect=prefs.getUChar("lm_eff",0);rightMood.effect=prefs.getUChar("rm_eff",0);leftMood.hue=prefs.getUShort("lm_hue",0);rightMood.hue=prefs.getUShort("rm_hue",120);
+  leftMood.saturation=prefs.getUChar("lm_sat",255);rightMood.saturation=prefs.getUChar("rm_sat",255);leftMood.brightness=prefs.getUChar("lm_val",200);rightMood.brightness=prefs.getUChar("rm_val",200);
+  leftMood.speed=prefs.getUChar("lm_sp",28);rightMood.speed=prefs.getUChar("rm_sp",28);leftMood.palette=prefs.getUChar("lm_pal",0);rightMood.palette=prefs.getUChar("rm_pal",1);
+  leftMood.scale=prefs.getUChar("lm_sc",70);rightMood.scale=prefs.getUChar("rm_sc",70);leftMood.motion=prefs.getUChar("lm_mot",65);rightMood.motion=prefs.getUChar("rm_mot",65);
+  leftMood.glow=prefs.getUChar("lm_gl",75);rightMood.glow=prefs.getUChar("rm_gl",75);leftMood.density=prefs.getUChar("lm_den",55);rightMood.density=prefs.getUChar("rm_den",55);
+  leftMood.turbulence=prefs.getUChar("lm_tur",45);rightMood.turbulence=prefs.getUChar("rm_tur",45);leftMood.colorMode=prefs.getUChar("lm_cm",2);rightMood.colorMode=prefs.getUChar("rm_cm",2);
+  leftMood.autoColor=prefs.getBool("lm_auto",false);rightMood.autoColor=prefs.getBool("rm_auto",false);leftMood.reverse=prefs.getBool("lm_rev",false);rightMood.reverse=prefs.getBool("rm_rev",false);
+  moodLinkMode=(MoodLinkMode)constrain(prefs.getUChar("linkmode",0),0,3);
+  dynBrightEnabled=prefs.getBool("dyn_en",false);dynBrightMin=prefs.getUChar("dyn_min",0);dynBrightMax=prefs.getUChar("dyn_max",255);dynBrightResp=prefs.getUChar("dyn_resp",35);
+  moodDynEnabled=prefs.getBool("mood_dyn",false);moodDynDepth=prefs.getUChar("mood_dep",25);
+  tvMasterSyncEnabled=prefs.getBool("tv_sync",true);tvMasterBrightnessEnabled=prefs.getBool("tv_bsync",true);
+  ambilightSource=(prefs.getUChar("amb_src",AMB_SRC_MEASURED)!=0)?AMB_SRC_PROCESSED:AMB_SRC_MEASURED;
+  sideCloneEnabled=prefs.getBool("clone_en",true);sideCloneBrightness=prefs.getUChar("clone_br",255);cloneLeftStart=prefs.getUShort("cl_st",30);cloneLeftCount=prefs.getUShort("cl_ct",30);cloneRightStart=prefs.getUShort("cr_st",90);cloneRightCount=prefs.getUShort("cr_ct",30);cloneLeftRev=prefs.getBool("cl_rev",false);cloneRightRev=prefs.getBool("cr_rev",false);
+  prefs.end();
+  if(legacyAuthMigrated){
+    prefs.begin("cfg",false);
+    prefs.remove("webpw");
+    prefs.end();
+    Serial.println("[AUTH] legacy plaintext password migrated and removed");
+  }
+  // Mapper is loaded independently from the general configuration transaction.
+  loadMapper(true);
+  if(fresh){
+    saveConfig(true);
+    Serial.println("[CFG] friss telepítés — alapértelmezett konfig");
+  } else {
+    if(segmentCount!=MAX_SEGMENTS){ setDefaultMapping(); saveMapper(); }
+    if(stored>0 && stored<CONFIG_SCHEMA_VERSION){
+      Serial.printf("[CFG] konfig séma frissítve v%u -> v%u\n",stored,CONFIG_SCHEMA_VERSION);
+      saveConfig(true);   // séma-migrációkor a helyesen betöltött mappert is újramentjük
+    }
+  }
+}
+
+bool detectTVTopology(){
+  if(!tvConnect())return false; int n=tvGet("/1/ambilight/topology",tvJsonBuf,sizeof(tvJsonBuf)); if(n<=0)return false; JsonDocument d; if(deserializeJson(d,tvJsonBuf))return false;
+  JsonObject l=d["layer1"]; if(l.isNull())l=d.as<JsonObject>(); if(l.isNull())return false;
+  auto countKeys=[&](JsonVariant v)->uint8_t{if(!v.is<JsonObject>())return 0;uint8_t c=0;for(JsonPair kv:v.as<JsonObject>())c++;return c;};
+  uint8_t le=countKeys(l["left"]),ri=countKeys(l["right"]),to=countKeys(l["top"]),bo=countKeys(l["bottom"]);
+  if(le)tvTopoLeft=le;if(ri)tvTopoRight=ri;if(to)tvTopoTop=to;if(bo)tvTopoBottom=bo;tvTopoLayers=1;tvTopoDetected=true;return true;
+}
+
+/* ===== SETUP / LOOP ===================================================== */
+
+void setup(){
+  Serial.begin(115200);
+  delay(200);
+  Serial.printf("\n=== AMBILIGHT BRIDGE %s ===\n", FIRMWARE_VERSION);
+
+  // LED init
+  FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, LED_COUNT);
+  FastLED.setBrightness(DEFAULT_BRIGHTNESS);
+  FastLED.clear(true);
+
+  loadConfig();
+  connectWiFi();
+
+  lastSuccessfulPoll=0;
+  tvOnline=false;
+  smartLastFrameMs=millis();
+
+  // [WDT] Task watchdog a loop()-ra: ha egy iteráció beragad (pl. hálózati
+  // blokkolás), a chip újraindul. Az API core-verziónként eltér, ezért guardolt.
+#if ESP_IDF_VERSION_MAJOR >= 5
+  esp_task_wdt_config_t twdt_cfg = { .timeout_ms = WDT_TIMEOUT_MS, .idle_core_mask = 0, .trigger_panic = true };
+  esp_task_wdt_reconfigure(&twdt_cfg);   // IDF5-ben a WDT-t a core már inicializálta
+#else
+  esp_task_wdt_init(WDT_TIMEOUT_MS/1000, true);
+#endif
+  esp_task_wdt_add(NULL);                 // a jelenlegi (loop) taszk feliratkoztatása
+
+  Serial.println("[SETUP] kész");
+}
+
+void loop(){
+  unsigned long now=millis();
+
+  handleWiFi();
+
+  if(webStarted){
+    server.handleClient();
+    wsServer.loop();
+  }
+
+  // újraindítás-kérések kezelése (WiFi mentés / reboot / OTA)
+  if((restartPending||otaRestartPending) && now>=restartAt){
+    const char* reason = restartReason[0] ? restartReason : (otaRestartPending ? "ota" : "unknown");
+    // Clear BEFORE ESP.restart(): a future accidental re-entry cannot retrigger
+    // the same request during this boot cycle.
+    restartPending=false;
+    otaRestartPending=false;
+    Serial.printf("[SYS] újraindítás — reason=%s, age=%lums\n", reason, now-restartRequestedAt);
+    delay(100);
+    ESP.restart();
+  }
+
+  // TV státusz poll (forrás/csatorna/hangerő/Ambilight mód)
+  if(now-lastTVMasterPoll>=TV_MASTER_POLL_MS){
+    lastTVMasterPoll=now;
+    if(WiFi.isConnected() && tvIP!=IPAddress(0,0,0,0)) pollTVStatus();
+  }
+
+  // TV watchdog
+  if(now-lastTVWatchdog>=TV_WATCHDOG_INTERVAL_MS){
+    lastTVWatchdog=now;
+    handleTVWatchdog();
+  }
+
+  // ===== TV vs Mood LED-frissítés – kölcsönösen kizárólagos, csak egyszer/show() =====
+  // FONTOS: az ambilight-keret lekérése (readAmbilight) az, ami detektálja a TV-t
+  // (frissíti lastSuccessfulPoll-t → a watchdog ebből állítja tvOnline-t), ezért a
+  // lekérést MINDIG futtatjuk, ha kapcsolódtunk – függetlenül a tvOnline-tól.
+  // Csak a LED render+show() kölcsönösen kizárólagos a mood-dal.
+  bool tvFetchAllowed = !provisioningMode && WiFi.isConnected()
+                        && tvIP!=IPAddress(0,0,0,0) && !otaInProgress;
+
+  if(tvFetchAllowed && now-lastFrameStart>=TV_FRAME_INTERVAL_MS){
+    lastFrameStart=now;
+    bool got=readAmbilight();
+    if(!got) tvConsecutiveFailures++;
+    // [E5] a keretszámlálót a broadcast ELŐTT növeljük, hogy a WS üzenet
+    //      és a kliensklónok konzisztens seq-et lássanak
+    smartFrameSeq++;
+    // Csak akkor renderelünk+mutatunk TV-ből, ha tényleg aktív a jel.
+    if(tvOnline && !tvOutputOff){
+      renderZonesToLeds();
+      showLeds();
+    }
+    broadcastRealtime();
+    smartLastFrameMs=now;
+  }
+
+  // Mood keret: csak ha nincs aktív TV-jel (kölcsönösen kizárólagos a fentivel)
+  bool moodActive = !provisioningMode && (!tvOnline || tvOutputOff)
+                    && !ledTestActive && !otaInProgress;
+  if(moodActive && now-lastMoodFrame>=MOOD_FRAME_INTERVAL_MS){
+    lastMoodFrame=now;
+    renderMood();
+    FastLED.setBrightness(effectiveMoodBrightness());
+    FastLED.show();
+  }
+
+  static unsigned long lastMoodWsStatus=0;
+  if(moodActive && now-lastMoodWsStatus>=MOOD_WS_STATUS_INTERVAL_MS){
+    lastMoodWsStatus=now;
+    broadcastMoodStatus();
+  }
+
+  // [WDT] watchdog karbantartás – ha a loop() beragad, a chip újraindul
+  esp_task_wdt_reset();
+
+  yield();
+}
