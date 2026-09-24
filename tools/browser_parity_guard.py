@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "web" / "index.html"
 DOCS = ROOT / "docs" / "index.html"
 HEADER = ROOT / "firmware" / "embedded_ui.h"
-FW = ROOT / "firmware" / "AMBILIGHT_BRIDGE_v5_5_1_C3_HARDENED.ino"
+FW = ROOT / "firmware" / "AMBILIGHT_BRIDGE_v5_6_3_C3_CHAOSWAVE_MOOD.ino"
 
 def fail(msg):
     print("FAIL:", msg)
@@ -55,7 +55,7 @@ effect_count = len(re.findall(r'"(?:[^"\\]|\\.)*"', effects.group(1)))
 if effect_count != 23:
     fail(f"effect count changed: expected 23, got {effect_count}")
 
-# Firmware source inventory: these symbols are required by the current hardened build.
+# Firmware source inventory: these symbols are required by the canonical v5.6.3 ChaosWave Mood build.
 REQUIRED_FIRMWARE_SYMBOLS = [
     "setup()", "loop()", "readAmbilight", "renderZonesToLeds", "renderMood",
     "saveConfig", "loadConfig", "saveMapper", "loadMapper",
