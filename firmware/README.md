@@ -2,9 +2,9 @@
 
 ## Canonical release
 
-**v5.6.1-C3-HARDENED-MERGED**
+**v5.6.3-C3-CHAOSWAVE-MOOD**
 
-Use `firmware/AMBILIGHT_BRIDGE_v5_6_1_C3_HARDENED_MERGED.ino`.
+Use `firmware/AMBILIGHT_BRIDGE_v5_6_3_C3_CHAOSWAVE_MOOD.ino`.
 
 Target: ESP32-C3 + WS2815 12 V, 120 logical LEDs.
 
