@@ -3,7 +3,7 @@ name: Firmware Build
 on:
   push:
     paths:
-      - "firmware/AMBILIGHT_BRIDGE_v5_5_1_C3_HARDENED.ino"
+      - "firmware/AMBILIGHT_BRIDGE_v5_6_3_C3_CHAOSWAVE_MOOD.ino"
       - "firmware/embedded_ui.h"
       - "web/index.html"
       - "tools/build_web_ui.py"
@@ -11,7 +11,7 @@ on:
       - ".github/workflows/firmware-build.yml"
   pull_request:
     paths:
-      - "firmware/AMBILIGHT_BRIDGE_v5_5_1_C3_HARDENED.ino"
+      - "firmware/AMBILIGHT_BRIDGE_v5_6_3_C3_CHAOSWAVE_MOOD.ino"
       - "firmware/embedded_ui.h"
       - "web/index.html"
       - "tools/build_web_ui.py"
@@ -59,7 +59,7 @@ jobs:
         run: |
           rm -rf AmbilightBridge
           mkdir -p AmbilightBridge
-          cp firmware/AMBILIGHT_BRIDGE_v5_5_1_C3_HARDENED.ino AmbilightBridge/AmbilightBridge.ino
+          cp firmware/AMBILIGHT_BRIDGE_v5_6_3_C3_CHAOSWAVE_MOOD.ino AmbilightBridge/AmbilightBridge.ino
           cp firmware/embedded_ui.h AmbilightBridge/
 
       - name: Compile ESP32-C3 firmware
@@ -74,3 +74,11 @@ jobs:
       - name: Report firmware binary
         run: |
           ls -lh build/esp32c3
+
+      - name: Upload compiled firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ambilight-bridge-v5.6.3-c3-chaoswave-mood
+          path: build/esp32c3/*
+          if-no-files-found: error
+          retention-days: 14
