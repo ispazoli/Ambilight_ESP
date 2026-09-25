@@ -543,7 +543,16 @@ void apiState(){
 // [5.6.0] Ambilight forrás + élő TV státusz (source/channel/volume/mode)
 d["amb_src"]=ambilightSource;
 d["tv_source"]=tvStatSource; d["tv_channel"]=tvStatChannel; d["tv_mode"]=tvStatMode;
-d["tv_volume"]=tvStatVolume; d["tv_vol_max"]=tvStatVolMax; d["tv_muted"]=tvStatMuted;
+  // Közvetett TV-fényerő becslés: a négy aktuális Ambilight zóna maximális RGB
+  // komponenseinek átlaga. Ez nem a panel/backlight valódi fényereje.
+  uint32_t lumSum=0;
+  for(int i=0;i<4;i++) lumSum += max(max(targetZones[i].r,targetZones[i].g),targetZones[i].b);
+  d["tv_brightness_est"]=(uint8_t)((lumSum*100u/4u+127u)/255u);
+  d["tv_brightness_method"]="zone_luminance_estimate";
+  d["tv_volume"]=tvStatVolume; d["tv_vol_max"]=tvStatVolMax; d["tv_muted"]=tvStatMuted;
+  d["tv_topo_detected"]=tvTopoDetected;
+  d["tv_topo_left"]=tvTopoLeft; d["tv_topo_top"]=tvTopoTop; d["tv_topo_right"]=tvTopoRight;
+  d["tv_topo_bottom"]=tvTopoBottom; d["tv_topo_layers"]=tvTopoLayers;
   auto moodJson=[&](JsonObject o,const MoodConfig& m){
     o["mode"]=m.mode;o["effect"]=m.effect;o["sat"]=m.saturation;o["bri"]=m.brightness;o["speed"]=m.speed;
     o["pal"]=m.palette;o["scale"]=m.scale;o["motion"]=m.motion;o["glow"]=m.glow;o["density"]=m.density;
