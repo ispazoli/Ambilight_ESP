@@ -220,6 +220,21 @@ padding:9px 11px;border-radius:var(--r-sm);border:1px solid transparent;transiti
 .segRow select{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .segRow input[type=checkbox]{width:15px;height:15px;margin-bottom:5px}
 .segAddr{padding:6px 7px;border:1px solid var(--line);border-radius:var(--r-sm);background:#f3f6fb;color:var(--soft);font-size:11px;font-variant-numeric:tabular-nums;text-align:center;white-space:nowrap;font-weight:560}
+.mapperTableWrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r-sm);background:#fff;box-shadow:var(--shadow-sm)}
+.mapperTable{width:100%;border-collapse:separate;border-spacing:0;min-width:700px;font-size:11px}
+.mapperTable th{padding:9px 10px;text-align:left;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.06em;font-weight:650;background:#f7f9fc;border-bottom:1px solid var(--line)}
+.mapperTable td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.mapperTable tr:last-child td{border-bottom:0}
+.mapperTable tr:hover td{background:#fbfcfe}
+.mapperTable .sideCell{font-weight:650;color:var(--primary);white-space:nowrap}
+.mapperTable .ledCell{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.mapperTable select,.mapperTable input[type=number]{padding:7px 9px;font-size:11px}
+.mapperTable .revCell{text-align:center}
+.mapperTable .revCell input{width:15px;height:15px}
+.tvInfoGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.tvInfoGrid .statBox{min-height:96px;display:flex;flex-direction:column;justify-content:center}
+@media(max-width:700px){.tvInfoGrid{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.tvInfoGrid{grid-template-columns:1fr}}
 /* ── Smart Engine Panels ─────────────────────────────────────── */
 .meterLabel{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:5px;font-weight:560;letter-spacing:.3px}
 .meterLabel span:last-child{color:var(--text);font-weight:590;font-variant-numeric:tabular-nums}
@@ -329,7 +344,12 @@ padding:30px 32px;max-width:460px;width:calc(100% - 36px);box-shadow:0 40px 90px
 <section class="page" id="page-mapper">
   <div class="card"><div class="cardHead"><span class="cardIcon">🗺️</span><h3>LED <b>Mapper</b> · 12 független szegmens · 4 oldal × 30 LED · 3×10/oldal</h3></div>
     <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Minden szegmenshez rendelj TV zónát, gradiens irányt vagy keverési módot. A fizikai sorrend fix. TV Master Sync + Side Clone esetén a Mapper csak a BOTTOM 0–29 és TOP 60–89 LED-eket vezérli; LEFT 30–59 és RIGHT 90–119 klónozott.</p>
-    <div id="segList"></div>
+    <div class="mapperTableWrap">
+      <table class="mapperTable">
+        <thead><tr><th>Oldal</th><th>Szegmens</th><th>LED tartomány</th><th>Forrás</th><th>Fényerő</th><th>Fordítás</th></tr></thead>
+        <tbody id="segList"></tbody>
+      </table>
+    </div>
     <div class="btnRow"><button class="btn btnDim" onclick="defaults()">↺ Gyári</button><button class="btn btnSave" onclick="saveConfig()">💾 Mentés</button></div>  </div>
   <div class="card" style="margin-top:14px"><div class="cardHead"><span class="cardIcon">👁️</span><h3><b>Előnézet</b> · forrás színek szerint</h3></div>
     <div class="ledStrip" id="mapperBar"></div>
@@ -381,7 +401,7 @@ padding:30px 32px;max-width:460px;width:calc(100% - 36px);box-shadow:0 40px 90px
     </div>
   </div>
   <div class="card" style="margin-top:14px"><div class="cardHead"><span class="cardIcon">📺</span><h3>TV <b>Státusz</b> <span class="sceneBadge dark" id="tvStatLive" style="margin-left:auto">—</span></h3></div>
-    <div class="g4" id="tvStatusGrid"></div>
+    <div class="tvInfoGrid" id="tvStatusGrid"></div>
     <p id="tvPowerInfo" style="font-size:10px;color:var(--muted);margin-top:8px">TV POWER: ismeretlen</p>
     <p style="font-size:10px;color:var(--muted);margin-top:4px">A TV státusza (forrás, csatorna, hangerő, Ambilight mód) egy-egy JointSPACE v1 végponton, rotációban frissül.</p>
   </div>
@@ -771,13 +791,17 @@ function renderTVStatus(s){
   const online=!!(s&&s.tv_signal==="active");
   let vol="—";
   if(online&&(s.tv_volume!=null)&&s.tv_volume>=0){vol=s.tv_muted?"Némítva":(s.tv_volume+(s.tv_vol_max?(" / "+s.tv_vol_max):""));}
+  const mode=(s.tv_mode||"").trim() || ((s.amb_src??0)===0?"Measured":"Processed");
+  const bri=Math.max(0,Math.min(100,Number(s.tv_brightness_est)||0));
   const rows=[
     {l:"Forrás",v:online?(s.tv_source||"—"):"—"},
     {l:"Csatorna",v:online?(s.tv_channel||"—"):"—"},
     {l:"Hangerő",v:online?vol:"—"},
-    {l:"Ambilight mód",v:online?(s.tv_mode||"—"):"—"}
+    {l:"TV fényereje · közvetett becslés",v:online?(bri+" %"):"—"},
+    {l:"TV Ambilight mód",v:online?mode:"—"},
+    {l:"TV zóna-topológia",v:s.tv_topo_detected?(`${s.tv_topo_left}/${s.tv_topo_top}/${s.tv_topo_right}/${s.tv_topo_bottom} zóna · ${s.tv_topo_layers} réteg`):"4 zóna · fallback"} 
   ];
-  el.innerHTML=rows.map(x=>`<div class="statBox"><div class="statVal info" style="font-size:16px">${escHtml(x.v)}</div><div class="statLabel">${x.l}</div></div>`).join("");
+  el.innerHTML=rows.map(x=>`<div class="statBox"><div class="statVal info" style="font-size:16px">${escHtml(String(x.v))}</div><div class="statLabel">${x.l}</div></div>`).join("");
   const lv=$("tvStatLive");if(lv){lv.textContent=online?"jel aktív":"jel nincs";lv.className="sceneBadge "+(online?"action":"dark");}
   const note=$("tvPowerInfo");if(note)note.textContent="TV POWER: ismeretlen · a JointSPACE v1 modellen nincs /1/system/power endpoint";
 }
@@ -869,6 +893,15 @@ function normalizeState(s){
     last_error:s.last_error??"",
     tv_signal:s.tv_signal??(s.tv_online?"active":"stale"),
     tv_power:s.tv_power??"unknown",
+    tv_brightness_est:s.tv_brightness_est??0,
+    tv_brightness_method:s.tv_brightness_method??"zóna-luminancia",
+    tv_mode:s.tv_mode??"",
+    tv_topo_detected:!!s.tvTopoDetected,
+    tv_topo_left:s.tv_topo_left??0,
+    tv_topo_top:s.tv_topo_top??0,
+    tv_topo_right:s.tv_topo_right??0,
+    tv_topo_bottom:s.tv_topo_bottom??0,
+    tv_topo_layers:s.tv_topo_layers??1,
     http_port:s.http_port??8080,
     ws_port:s.ws_port??81,
     black_threshold:s.black_threshold??s.blackThreshold??4,
@@ -973,12 +1006,12 @@ function renderSegs(segs){
   const names=mapperSources.length?mapperSources:SRC_FALLBACK;
   let h="";
   for(let side=0;side<4;side++){
-    h+=`<div class="segSide">${SIDES[side]}</div>`;
     for(let s=0;s<3;s++){
       const i=side*3+s,seg=segs[i]||canonicalMapperDefaults()[i];
       const start=i*FIXED_MAPPER_LEDS,end=start+FIXED_MAPPER_LEDS-1;
-      const bri=seg.brightness??seg.bri??255,rev=seg.reverse??seg.rev??false;
-      h+=`<div class="segRow"><div><label>LED</label><div class="segAddr">${start}–${end}</div></div><div><label>SRC</label><select id="s${i}src" onchange="updateMapperPreview()">${names.map((n,j)=>`<option value="${j}" ${(seg.source??0)===j?"selected":""}>${n}</option>`).join("")}</select></div><div><label>Fény</label><input type="number" id="s${i}bri" value="${bri}" min="0" max="255"></div><div><label>↔</label><input type="checkbox" id="s${i}rev" ${rev?"checked":""}></div></div>`;
+      const bri=Math.max(0,Math.min(255,Number(seg.brightness??seg.bri??255)));
+      const rev=!!(seg.reverse??seg.rev??false);
+      h+=`<tr><td class="sideCell">${SIDES[side]}</td><td>${s+1}/3</td><td class="ledCell">${start}–${end} (${FIXED_MAPPER_LEDS} LED)</td><td><select id="s${i}src" onchange="updateMapperPreview()">${names.map((n,j)=>`<option value="${j}" ${(seg.source??0)===j?"selected":""}>${n}</option>`).join("")}</select></td><td><input type="number" id="s${i}bri" value="${bri}" min="0" max="255" step="1"></td><td class="revCell"><input type="checkbox" id="s${i}rev" ${rev?"checked":""}></td></tr>`;
     }
   }
   el.innerHTML=h;
